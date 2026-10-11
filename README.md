@@ -18,7 +18,7 @@ its translator and runtime.
 > There is no Nintendo code, no assets and no game data anywhere in this project or its releases,
 > and there never will be. You need your own legally dumped copy of the game. The translation runs
 > on your machine against your own disc image, and nothing is ever uploaded. Read
-> [LEGAL.md](LEGAL.md) before contributing.
+> [LEGAL.md](docs/LEGAL.md) before contributing.
 
 ## Goals
 
@@ -42,7 +42,7 @@ its translator and runtime.
 | [docs/nsmbw/roadmap.md](docs/nsmbw/roadmap.md) | Milestones M0 to M9 and their exit criteria |
 | [docs/nsmbw/architecture.md](docs/nsmbw/architecture.md) | Target architecture and the seven determinism rules |
 | [projects/nsmbw-usa/](projects/nsmbw-usa/) | The project manifest template for the translator |
-| [LEGAL.md](LEGAL.md) | What must never enter this repository |
+| [LEGAL.md](docs/LEGAL.md) | What must never enter this repository |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution rules (inherited from WiiCompiled) |
 | [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md) | The original WiiCompiled README: build instructions, FAQ, credits |
 

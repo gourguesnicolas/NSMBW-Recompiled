@@ -1,7 +1,7 @@
 name: No game data
 
 # Rejects commits that track game binaries, disc images, game assets or
-# translator output. See LEGAL.md.
+# translator output. See docs/LEGAL.md.
 on:
   push:
   pull_request:

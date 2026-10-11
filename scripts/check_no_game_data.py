@@ -3,7 +3,7 @@
 
 Checks every file tracked by git for: forbidden extensions, forbidden
 directories (translator output), known container magic numbers, and size.
-This is a safety net for LEGAL.md, not a replacement for it.
+This is a safety net for docs/LEGAL.md, not a replacement for it.
 """
 import subprocess
 import sys
@@ -81,7 +81,7 @@ def main() -> int:
             failures += 1
             print(f"::error file={path}::{path}: {problem}")
     if failures:
-        print(f"\n{failures} problem(s) found. See LEGAL.md: game data and translator "
+        print(f"\n{failures} problem(s) found. See docs/LEGAL.md: game data and translator "
               "output must never be committed.")
         return 1
     print(f"OK: {len(files)} tracked files, no game data found.")

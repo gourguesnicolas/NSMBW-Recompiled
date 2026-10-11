@@ -6,7 +6,7 @@ Translator manifest for the North American release (`SMNE01`).
 from **your own** dump and filled in. Copy it to `recomp.yml` once they are known.
 
 Nothing in this folder may contain game data. Addresses, sizes and hashes are fine; bytes of the
-game are not. See [LEGAL.md](../../LEGAL.md).
+game are not. See [LEGAL.md](../../docs/LEGAL.md).
 
 ## What needs to be determined (milestones M0 and M1)
 
