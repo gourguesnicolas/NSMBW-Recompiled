@@ -74,3 +74,21 @@ output.txt
 
 # Operating System
 .DS_Store
+
+# NSMBW-Recompiled: additional game data and dump formats
+*.LZ
+*.lz
+*.LH
+*.wia
+*.gcz
+*.tgc
+*.dff
+*.gci
+*.brstm
+*.brlyt
+*.brlan
+*.brfnt
+*.tpl
+/Dumps/
+/dumps/
+/projects/nsmbw-usa/recomp.yml

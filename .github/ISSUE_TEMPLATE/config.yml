@@ -1,8 +1,8 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: WheelWizard problem (launcher UI, mod downloads, Mii/save management)
-    url: https://github.com/TeamWheelWizard/WheelWizard/issues
-    about: If the problem is in the WheelWizard app itself rather than the game runtime, report it there instead.
-  - name: Retro Rewind / track questions
-    url: https://wiki.tockdom.com/wiki/Retro_Rewind
-    about: Questions about Retro Rewind content (tracks, unlocks, online events) that also happen on Dolphin or console belong with the Retro Rewind project, not here.
+  - name: Problem that also happens in upstream WiiCompiled
+    url: https://github.com/patchzyy/Wiicompiled/issues
+    about: Translator or runtime bugs that are not specific to this port may belong upstream. Check there first.
+  - name: Where do I get the game?
+    url: https://github.com/gourguesnicolas/NSMBW-Recompiled/blob/main/LEGAL.md
+    about: Nowhere here. You need your own legally dumped copy. Requests and links for game files are removed.

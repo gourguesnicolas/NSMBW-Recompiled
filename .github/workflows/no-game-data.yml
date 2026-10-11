@@ -1,0 +1,23 @@
+name: No game data
+
+# Rejects commits that track game binaries, disc images, game assets or
+# translator output. See LEGAL.md.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Repository contains no game data
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Scan tracked files
+        run: python3 scripts/check_no_game_data.py
