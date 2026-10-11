@@ -56,3 +56,15 @@ and vice versa. Check each project's own CONTRIBUTING file.
   anywhere else in this project. No exceptions.
 - By contributing, you agree your contributions are licensed under
   [GPL v3.0](LICENSE), like the rest of the project.
+
+## NSMBW-Recompiled specifics
+
+This repository is a fork of WiiCompiled. Everything above still applies, plus:
+
+- Read [LEGAL.md](LEGAL.md). Translator output counts as game data and never goes in a commit.
+- Runtime changes must respect the seven determinism rules in
+  [docs/nsmbw/architecture.md](docs/nsmbw/architecture.md).
+- Changes that are not specific to this game should be written so they can be proposed upstream.
+  Label the issue `upstream`. Upstream requires that you write your own pull request description.
+- A CI check rejects game data. If it flags a legitimate file, discuss it in the pull request
+  rather than working around the check.

@@ -1,0 +1,58 @@
+name: Divergence from Dolphin / console
+description: The port behaves differently from the original game (physics, timing, logic, visuals, audio).
+title: "[Accuracy] "
+labels: ["accuracy", "type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Accuracy is the bar for anything touching game behaviour. A report is most useful with an
+        **input replay** that reproduces the difference.
+
+        Do not attach game files, disc images, save files containing game data, or translator output.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you continue
+      options:
+        - label: The behaviour is correct on Dolphin or a real console with the same clean image.
+          required: true
+        - label: I am not attaching any game data (see LEGAL.md).
+          required: true
+  - type: input
+    id: image
+    attributes:
+      label: Game ID and main.dol SHA-256
+      placeholder: "SMNE01, sha256: ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Port version or commit
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where in the game
+      placeholder: "World 1-3, right after the midway flag"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected (Dolphin / console)
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual (this port)
+    validations:
+      required: true
+  - type: textarea
+    id: replay
+    attributes:
+      label: Input replay, first diverging tick, logs
+      description: Attach the replay file and the state-hash comparison output if you have them.

@@ -1,0 +1,47 @@
+# TEMPLATE - not a working manifest. Fill in every TODO from your own dump, then copy this file to
+# recomp.yml. Do not guess values and do not copy them from another region or revision.
+schema_version: 1
+workspace_root: ../..
+
+project:
+  id: nsmbw-smne01
+  display_name: NSMBW USA
+  game_id: SMNE01
+  region: E
+
+memory:
+  base: 0x80000000
+  # size:      TODO  guest address space needed by this game (MEM1 is 0x01800000)
+  # sda_base:  TODO  _SDA_BASE_  (r13), from __init_registers
+  # sda2_base: TODO  _SDA2_BASE_ (r2),  from __init_registers
+
+inputs:
+  dol:
+    path: Assets/main.dol
+    # sha256: TODO  SHA-256 of main.dol from your disc revision
+
+  # The schema currently accepts ONE rel. This game has four, shipped as .rel.LZ and
+  # decompressed before translation. Multi-REL support is an M1 task.
+  # rel:
+  #   path: Assets/TODO.rel
+  #   load_address: TODO
+  #   sha256: TODO
+
+translation:
+  # entry_points:
+  #   - TODO
+  # function_map:
+  #   path: projects/nsmbw-usa/MAP.txt
+  allow_unsupported_instructions: false
+
+runtime:
+  native_registration_root: runtime/src
+  native_abi_directories:
+    - runtime/src/hle/gx
+
+output:
+  root: generated
+  functions: functions
+  runtime_config: RuntimeConfig.h
+  data_initializer: data_sections_init.cpp
+  base_manifest: ../build/base/nsmbw_base_manifest.json
