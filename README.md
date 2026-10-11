@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/nsmbw/logo.svg" alt="NSMBW Recompiled" width="640">
+  <img src="docs/nsmbw/logo.svg" alt="NSMBW Recompiled" width="800">
 </p>
 
 # NSMBW-Recompiled
