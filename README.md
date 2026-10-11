@@ -2,7 +2,7 @@
   <img src="docs/nsmbw/logo.svg" alt="NSMBW Recompiled" width="100%">
 </p>
 
-# NSMBW-Recompiled
+# NSMBW Recompiled
 
 A work-in-progress native PC port of a 2009 Wii side-scrolling platformer, made with static
 recompilation. It is a fork of [WiiCompiled](https://github.com/patchzyy/Wiicompiled) and reuses
