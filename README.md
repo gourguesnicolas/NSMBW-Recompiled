@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/nsmbw/logo.svg" alt="NSMBW Recompiled" width="800">
+</p>
+
 # NSMBW-Recompiled
 
 A work-in-progress native PC port of a 2009 Wii side-scrolling platformer, made with static
