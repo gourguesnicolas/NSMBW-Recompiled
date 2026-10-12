@@ -52,9 +52,10 @@ translation:
   allow_unsupported_instructions: false
 
 runtime:
+  # The runtime's hand-written hooks are keyed by Mario Kart Wii addresses. 13 of them are the start of
+  # an unrelated function here, so none may apply until they are ported (docs/nsmbw/hle-hooks.md, #51).
+  native_hooks: false
   native_registration_root: runtime/src
-  native_abi_directories:
-    - runtime/src/hle/gx
 
 output:
   root: generated

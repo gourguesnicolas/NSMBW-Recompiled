@@ -47,8 +47,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-M0 (foundations) is nearly done; M1 (translation) is in progress. Next: #8 (`info` on the user's
-files), #9 (done: zero unsupported instructions), #13 (compile and link), #14 (inventory
-of Wii system calls), #15 (runtime determinism audit). Known large task in M2: the inherited runtime
-still assumes Mario Kart Wii's single module (hard-coded addresses in
-`runtime/src/system_bridge.cpp` and `runtime/src/hle/os/os_init.cpp`).
+M0 is done. M1: the translator reaches 40,958 functions in strict mode and the executable compiles and
+links (#13). `runtime.native_hooks: false` keeps the runtime's Mario Kart Wii hooks off; they have to
+be ported to this game's addresses (#51, `docs/nsmbw/hle-hooks.md`) before M2 can boot the game. Also
+open: #14 (inventory of SDK calls against HLE coverage) and #15 (determinism audit).
