@@ -110,3 +110,22 @@ python3 scripts/print_layout.py Assets/main.dol Assets/*.rel
 ```
 
 `Assets/` is ignored by git and rejected by CI. Keep it that way.
+
+## Function coverage
+
+`MAP.txt` is generated, not hand-written (names such as `__start` are kept). The call-graph walk from
+`__start` alone reaches about 2,000 functions, almost all in `main.dol`: the modules are entered through
+pointers. `scripts/coverage.py` finds the other function starts from three sources: the REL relocation
+tables, the pointers in `main.dol` data sections, and the `stwu r1` + `mflr r0` prologue.
+
+```sh
+python3 scripts/coverage.py projects/nsmbw-usa/recomp.yml generated/functions --emit-map projects/nsmbw-usa/MAP.txt
+```
+
+| Result | Functions |
+| --- | --- |
+| Walk from `__start` only | 2,023 |
+| With the generated map | 40,942 (`main.dol` 17,781; modules 1 to 4: 80, 12,987, 7,680, 2,414) |
+
+Leaf functions with no prologue and never referenced by a call or a pointer are not found by this
+method; the script lists how many candidates remain untranslated.
