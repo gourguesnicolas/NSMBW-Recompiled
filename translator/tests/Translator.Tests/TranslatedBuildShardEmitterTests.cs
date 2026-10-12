@@ -143,6 +143,11 @@ public sealed class TranslatedBuildShardEmitterTests
             TranslatedBuildShardEmitter.Emit(options);
             foreach (var (path, timestamp) in timestamps)
                 Assert.Equal(timestamp, File.GetLastWriteTimeUtc(path));
+
+            // The native-hook switch reaches CMake only when the project turned the hooks off.
+            Assert.DoesNotContain("MKW_NATIVE_HOOKS", File.ReadAllText(first.CMakeManifestPath));
+            var hooksOff = TranslatedBuildShardEmitter.Emit(options with { NativeHooks = false });
+            Assert.Contains("set(MKW_NATIVE_HOOKS OFF)", File.ReadAllText(hooksOff.CMakeManifestPath));
         }
         finally
         {

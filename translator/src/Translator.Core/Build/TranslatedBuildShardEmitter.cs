@@ -18,7 +18,8 @@ public sealed record TranslatedBuildShardOptions(
     int BaseShardCount = 72,
     int ModShardCount = 48,
     int RegistrationShardCount = 16,
-    RuntimeNativeIndex? NativeIndex = null);
+    RuntimeNativeIndex? NativeIndex = null,
+    bool NativeHooks = true);
 
 /// <summary>
 /// Per-shard compile-cost spread for one partition. Frozen membership does not
@@ -256,7 +257,8 @@ public static partial class TranslatedBuildShardEmitter
             shards,
             baseRegistration,
             rrRegistration,
-            extraRetroSources);
+            extraRetroSources,
+            options.NativeHooks);
         PruneStaleShardSources(outputRoot, shards, baseRegistration, rrRegistration);
 
         return new TranslatedBuildShardResult(
@@ -1048,10 +1050,16 @@ public static partial class TranslatedBuildShardEmitter
         IReadOnlyList<ShardInfo> shards,
         IReadOnlyList<string> baseRegistration,
         IReadOnlyList<string> rrRegistration,
-        IReadOnlyList<string> retroExtras)
+        IReadOnlyList<string> retroExtras,
+        bool nativeHooks)
     {
         var output = new StringBuilder();
         output.AppendLine("# Translator-owned stable shard graph; do not edit.");
+        if (!nativeHooks)
+        {
+            // The project's manifest sets runtime.native_hooks: false; see runtime/CMakeLists.txt.
+            output.AppendLine("set(MKW_NATIVE_HOOKS OFF)");
+        }
         output.AppendLine($"set(MKW_TRANSLATED_SHARD_ROOT \"{CMakePath(outputRoot)}\")");
         output.AppendLine($"set(MKW_BASE_FUNCTION_COUNT {activeBaseCount})");
         output.AppendLine($"set(MKW_SHARED_BASE_FUNCTION_COUNT {sharedBaseCount})");

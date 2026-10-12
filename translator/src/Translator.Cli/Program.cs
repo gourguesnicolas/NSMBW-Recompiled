@@ -69,7 +69,9 @@ var canonicalIrStore = new CanonicalIrStore();
 var inferredGuestAbi = new Lazy<InferredGuestFunctionAbiProvider>(() =>
     new InferredGuestFunctionAbiProvider(image.Value, canonicalIrStore));
 var runtimeNativeIndex = new Lazy<RuntimeNativeIndex>(() =>
-    RuntimeNativeIndexBuilder.Build(RequireProject().Runtime.NativeRegistrationRoot));
+    RequireProject().Runtime.NativeHooks
+        ? RuntimeNativeIndexBuilder.Build(RequireProject().Runtime.NativeRegistrationRoot)
+        : new RuntimeNativeIndex([], [], []));
 // Void-stub signatures are only trusted as declared guest ABIs when the stub
 // lives under runtime.native_abi_directories (the vetted set); everywhere else
 // the C++ signature is documentation and the inferred ABI stays authoritative.
@@ -228,7 +230,11 @@ int RunEmitBuildShards(string[] argsTail)
     try
     {
         var nativeSourcePath = Path.GetFullPath(nativeSources);
-        var nativeIndex = RuntimeNativeIndexBuilder.Build(nativeSourcePath);
+        // Without a project the hooks stay on: the option only exists in a manifest.
+        var nativeHooks = project?.Runtime.NativeHooks ?? true;
+        var nativeIndex = nativeHooks
+            ? RuntimeNativeIndexBuilder.Build(nativeSourcePath)
+            : new RuntimeNativeIndex([], [], []);
         var result = TranslatedBuildShardEmitter.Emit(new TranslatedBuildShardOptions(
             Path.GetFullPath(baseMetadata),
             Path.GetFullPath(baseFunctions),
@@ -236,7 +242,8 @@ int RunEmitBuildShards(string[] argsTail)
             nativeSourcePath,
             string.IsNullOrWhiteSpace(resolvedProfile) ? null : Path.GetFullPath(resolvedProfile),
             string.IsNullOrWhiteSpace(retroCpp) ? null : Path.GetFullPath(retroCpp),
-            NativeIndex: nativeIndex));
+            NativeIndex: nativeIndex,
+            NativeHooks: nativeHooks));
         Console.WriteLine("[translator] emitted stable translated build graph");
         Console.WriteLine($"  base functions: {result.BaseFunctionCount:N0}");
         Console.WriteLine($"  shared base functions: {result.SharedBaseFunctionCount:N0}");

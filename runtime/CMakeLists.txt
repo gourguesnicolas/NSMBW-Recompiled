@@ -47,6 +47,9 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 option(MKW_BUILD_PRODUCTS "Build translated WiiCompiled product targets" ON)
+# The hand-written native hooks are keyed by Mario Kart Wii addresses. A project turns them off in its
+# manifest (runtime.native_hooks: false) and the translator writes MKW_NATIVE_HOOKS=OFF into shards.cmake.
+option(MKW_NATIVE_HOOKS "Register the hand-written native hooks at their Mario Kart Wii addresses" ON)
 option(MKW_BUILD_PSQ_TESTS "Build focused PSQ ISA tests" OFF)
 set(MKW_X86_CPU_PROFILE "v3" CACHE STRING
     "Minimum x86-64 CPU profile for translated products (v2 or v3)")
@@ -365,6 +368,10 @@ if(MKW_BUILD_PRODUCTS)
             "Run Translator.Cli emit-build-shards first; see translator/README.md.")
     endif()
     include("${MKW_TRANSLATED_SHARD_MANIFEST}")
+    if(NOT MKW_NATIVE_HOOKS)
+        message(STATUS "Native hooks disabled: no function is replaced at a Mario Kart Wii address")
+        add_compile_definitions(MKW_NATIVE_HOOKS=0)
+    endif()
     set(MKW_HAVE_RETRO_REWIND ${MKW_HAVE_RETRO_REWIND_SHARDS})
     message(STATUS
         "Translator graph: ${MKW_SHARED_BASE_FUNCTION_COUNT}/${MKW_BASE_FUNCTION_COUNT} base functions shared; "
