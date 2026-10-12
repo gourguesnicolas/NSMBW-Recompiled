@@ -47,9 +47,9 @@ translation:
   # game calls them through pointers read from the module headers).
   function_map:
     path: projects/nsmbw-usa/MAP.txt
-  # M1 only: lets the first runs list every unsupported instruction instead of stopping at the
-  # first one. Must be false before anything ships (#9).
-  allow_unsupported_instructions: true
+  # Off: the first translation found no unsupported instruction (#9). The 81 `mfspr` comments in
+  # the output only mark reads of privileged SPRs, which the runtime serves through PPC_ReadSpr.
+  allow_unsupported_instructions: false
 
 runtime:
   native_registration_root: runtime/src
