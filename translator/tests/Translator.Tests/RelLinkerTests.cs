@@ -25,12 +25,23 @@ public class RelLinkerTests
     private sealed record Reloc(uint Offset, byte Type, byte SymbolSection, uint Addend);
 
     /// <summary>Builds a version 3 REL with sections [null, data(8 bytes)] and the given imports.</summary>
-    private static byte[] BuildRel(uint moduleId, params (uint ModuleId, Reloc[] Relocs)[] imports)
+    private static byte[] BuildRel(uint moduleId, params (uint ModuleId, Reloc[] Relocs)[] imports) =>
+        BuildRelWithBss(moduleId, bssSize: 0, imports);
+
+    /// <summary>
+    /// Same as <see cref="BuildRel"/>; with a non-zero <paramref name="bssSize"/> a third section
+    /// (index 2) is the module's BSS.
+    /// </summary>
+    private static byte[] BuildRelWithBss(uint moduleId, uint bssSize, (uint ModuleId, Reloc[] Relocs)[] imports)
     {
         const int headerSize = 0x4C;
-        const int sectionCount = 2;
+        var sectionCount = bssSize == 0 ? 2 : 3;
         var sectionTable = headerSize;
         var dataEnd = (int)DataSectionFileOffset + 8;
+        if (sectionTable + sectionCount * 8 > (int)DataSectionFileOffset)
+        {
+            throw new InvalidOperationException("Section table overlaps the data section");
+        }
         var importTable = dataEnd;
         var relocTable = importTable + imports.Length * 8;
 
@@ -65,10 +76,10 @@ public class RelLinkerTests
         void W32(int offset, uint value) => BinaryPrimitives.WriteUInt32BigEndian(raw.AsSpan(offset), value);
 
         W32(0x00, moduleId);
-        W32(0x0C, sectionCount);
+        W32(0x0C, (uint)sectionCount);
         W32(0x10, (uint)sectionTable);
         W32(0x1C, 3);                       // version
-        W32(0x20, 0);                       // bss size
+        W32(0x20, bssSize);                 // bss size
         W32(0x24, (uint)relocTable);
         W32(0x28, (uint)importTable);
         W32(0x2C, (uint)(imports.Length * 8));
@@ -78,6 +89,11 @@ public class RelLinkerTests
 
         W32(sectionTable + 8, DataSectionFileOffset); // section 1: data, not executable
         W32(sectionTable + 12, 8);
+        if (bssSize != 0)
+        {
+            raw[0x33] = 2;                              // BSS section index
+            W32(sectionTable + 20, bssSize);            // section 2: BSS (file offset 0)
+        }
 
         var relocCursor = relocTable;
         for (var i = 0; i < imports.Length; i++)
@@ -212,6 +228,50 @@ public class RelLinkerTests
         var program = new ProgramImageBuilder().Build(dol, rel);
 
         Assert.Equal(new[] { rel.Range }, program.RelRanges);
+    }
+
+    [Fact]
+    public void WithBssOffsetPlacesBssWhereTheLoaderPutsIt()
+    {
+        // BSS at 0x88, right after the data section: the space where the import table sits in the
+        // file. The game's loader reuses it the same way once relocations are applied.
+        var raw = BuildRelWithBss(2, bssSize: 0x10, new (uint, Reloc[])[] { (0, new[] { new Reloc(0, RAddr32, 0, 0x80001234) }) });
+        Assert.Contains(raw.Skip(0x88), b => b != 0); // import and relocation tables live past 0x88
+        var defaultLayout = RelFile.FromBytes(raw);
+        var loaderLayout = defaultLayout.WithBssOffset(0x88);
+
+        Assert.True(defaultLayout.Sections[2].FileOffset > 0x88);
+        Assert.Equal(0x88u, loaderLayout.Sections[2].FileOffset);
+        Assert.Equal(0x98u, loaderLayout.TotalSize);
+
+        var image = loaderLayout.BuildImage(0x80510000);
+        Assert.Equal(0x98, image.Data.Length);
+        Assert.All(image.Data.Skip(0x88), b => Assert.Equal(0, b));
+    }
+
+    [Fact]
+    public void ImportsIntoAnotherModulesBssFollowItsPlacement()
+    {
+        var importer = RelFile.FromBytes(BuildRel(1, (2, new[] { new Reloc(0, RAddr32, 2, 4) })));
+        var owner = RelFile.FromBytes(BuildRelWithBss(2, bssSize: 0x10, Array.Empty<(uint, Reloc[])>()))
+            .WithBssOffset(0x88);
+
+        var images = RelLinker.Link(new[]
+        {
+            new RelModulePlacement(importer, 0x80500000),
+            new RelModulePlacement(owner, 0x80510000),
+        });
+
+        Assert.Equal(0x80510000u + 0x88 + 4, Word(images[0], 0));
+    }
+
+    [Fact]
+    public void WithBssOffsetRejectsOverlapAndMisalignment()
+    {
+        var file = RelFile.FromBytes(BuildRelWithBss(2, bssSize: 0x10, Array.Empty<(uint, Reloc[])>()));
+
+        Assert.Throws<InvalidDataException>(() => file.WithBssOffset(0x80)); // overlaps the data section
+        Assert.Throws<InvalidDataException>(() => file.WithBssOffset(0x8C)); // not aligned to 8
     }
 
     private static DolFile BuildDol(uint entry, uint textAddress, uint textSize)

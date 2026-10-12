@@ -77,11 +77,15 @@ internal sealed class TranslationProjectConfig
         ProjectRelInput? rel = null;
         if (dto.Inputs?.Rel is { Path.Length: > 0 } relDto)
         {
-            var relInput = ResolveInput(workspaceRoot, relDto, "inputs.rel");
-            rel = new ProjectRelInput(
-                relInput.Path,
-                relInput.Sha256,
-                ParseUInt32(relDto.LoadAddress, null, "inputs.rel.load_address"));
+            rel = ResolveRelInput(workspaceRoot, relDto, "inputs.rel");
+        }
+
+        var rels = (dto.Inputs?.Rels ?? [])
+            .Select((relEntry, index) => ResolveRelInput(workspaceRoot, relEntry, $"inputs.rels[{index}]"))
+            .ToArray();
+        if (rel is not null && rels.Length > 0)
+        {
+            throw new InvalidDataException("Use either inputs.rel (one module) or inputs.rels (several modules), not both.");
         }
 
         var entryPoints = (dto.Translation?.EntryPoints ?? [])
@@ -140,7 +144,7 @@ internal sealed class TranslationProjectConfig
             workspaceRoot,
             identity,
             memory,
-            new ProjectInputs(dol, rel),
+            new ProjectInputs(dol, rel, rels),
             translation,
             runtime,
             output,
@@ -209,6 +213,10 @@ internal sealed class TranslationProjectConfig
         {
             ValidateInput(Inputs.Rel, "REL");
         }
+        foreach (var module in Inputs.Rels)
+        {
+            ValidateInput(module, "REL");
+        }
         if (Translation.FunctionMapPath is { } functionMapPath && !File.Exists(functionMapPath))
         {
             throw new FileNotFoundException("Configured function map was not found.", functionMapPath);
@@ -217,6 +225,16 @@ internal sealed class TranslationProjectConfig
         {
             throw new InvalidDataException("memory.size must be positive.");
         }
+    }
+
+    private static ProjectRelInput ResolveRelInput(string root, RelInputDto input, string field)
+    {
+        var resolved = ResolveInput(root, input, field);
+        return new ProjectRelInput(
+            resolved.Path,
+            resolved.Sha256,
+            ParseUInt32(input.LoadAddress, null, $"{field}.load_address"),
+            ParseOptionalUInt32(input.BssAddress, $"{field}.bss_address"));
     }
 
     private static ProjectBinaryInput ResolveInput(string root, BinaryInputDto input, string field)
@@ -384,6 +402,7 @@ internal sealed class TranslationProjectConfig
     {
         public BinaryInputDto? Dol { get; init; }
         public RelInputDto? Rel { get; init; }
+        public List<RelInputDto>? Rels { get; init; }
     }
 
     private class BinaryInputDto
@@ -395,6 +414,9 @@ internal sealed class TranslationProjectConfig
     private sealed class RelInputDto : BinaryInputDto
     {
         public string? LoadAddress { get; init; }
+
+        // Optional. Where the module's BSS starts; defaults to right after the whole file.
+        public string? BssAddress { get; init; }
     }
 
     // Translation behaviour (state-free ABI, register residency, leaf inlining, flat guest memory) is
@@ -467,8 +489,14 @@ internal sealed record ProjectIdentity(
     string BaseManifestStem);
 internal sealed record ProjectMemory(uint Base, int Size, uint? SdaBase = null, uint? Sda2Base = null);
 internal record ProjectBinaryInput(string Path, string? Sha256);
-internal sealed record ProjectRelInput(string Path, string? Sha256, uint LoadAddress) : ProjectBinaryInput(Path, Sha256);
-internal sealed record ProjectInputs(ProjectBinaryInput Dol, ProjectRelInput? Rel);
+internal sealed record ProjectRelInput(string Path, string? Sha256, uint LoadAddress, uint? BssAddress = null)
+    : ProjectBinaryInput(Path, Sha256);
+
+/// <summary>
+/// Rel is the single module of inputs.rel (the path every mod-related command uses). Rels holds the
+/// modules of inputs.rels, which are relocated together; at most one of the two is set.
+/// </summary>
+internal sealed record ProjectInputs(ProjectBinaryInput Dol, ProjectRelInput? Rel, IReadOnlyList<ProjectRelInput> Rels);
 internal sealed record ProjectTranslation(
     IReadOnlyList<uint> EntryPoints,
     string? FunctionMapPath,

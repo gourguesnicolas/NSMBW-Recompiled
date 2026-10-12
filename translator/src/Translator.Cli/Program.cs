@@ -348,9 +348,20 @@ int RunInfo()
         Console.WriteLine($"Project : {project.Identity.DisplayName} ({project.Identity.Id})");
         Console.WriteLine($"Memory  : 0x{project.Memory.Base:X8}+0x{project.Memory.Size:X}");
         Console.WriteLine($"DOL     : {project.Inputs.Dol.Path}");
-        Console.WriteLine(project.Inputs.Rel is null
-            ? "REL     : none"
-            : $"REL     : {project.Inputs.Rel.Path} @ 0x{project.Inputs.Rel.LoadAddress:X8}");
+        if (project.Inputs.Rels.Count > 0)
+        {
+            foreach (var module in project.Inputs.Rels)
+            {
+                var bss = module.BssAddress is { } bssAddress ? $", BSS @ 0x{bssAddress:X8}" : string.Empty;
+                Console.WriteLine($"REL     : {module.Path} @ 0x{module.LoadAddress:X8}{bss}");
+            }
+        }
+        else
+        {
+            Console.WriteLine(project.Inputs.Rel is null
+                ? "REL     : none"
+                : $"REL     : {project.Inputs.Rel.Path} @ 0x{project.Inputs.Rel.LoadAddress:X8}");
+        }
     }
     return 0;
 }
@@ -2836,7 +2847,7 @@ int RunGenerateDataInit()
     RelImage? relImage = null;
     if (!string.IsNullOrWhiteSpace(relPath) && loadedProject.Inputs.Rel is { } configuredRel && File.Exists(relPath))
     {
-        relImage = RelFile.Load(relPath).BuildImage(
+        relImage = LoadConfiguredRel(configuredRel).BuildImage(
             configuredRel.LoadAddress,
             applyRelocations: true);
     }
@@ -2847,12 +2858,26 @@ int RunGenerateDataInit()
     {
         Directory.CreateDirectory(outputDir);
     }
-    DataSectionGenerator.Generate(
-        dol,
-        relImage,
-        output,
-        loadedProject.Identity.DisplayName,
-        relPath is null ? "rel_module" : Path.GetFileNameWithoutExtension(relPath));
+    if (loadedProject.Inputs.Rels.Count > 0)
+    {
+        var moduleImages = LinkConfiguredModules();
+        DataSectionGenerator.Generate(
+            dol,
+            moduleImages
+                .Select((moduleImage, index) => (Image: moduleImage, Name: Path.GetFileNameWithoutExtension(loadedProject.Inputs.Rels[index].Path)))
+                .ToArray(),
+            output,
+            loadedProject.Identity.DisplayName);
+    }
+    else
+    {
+        DataSectionGenerator.Generate(
+            dol,
+            relImage,
+            output,
+            loadedProject.Identity.DisplayName,
+            relPath is null ? "rel_module" : Path.GetFileNameWithoutExtension(relPath));
+    }
     
     // Emit the guest symbol table for crash-report symbolization. The function
     // map is already the project's authoritative name source; the runtime only
@@ -3732,8 +3757,39 @@ ProgramImage LoadImage()
         $"[translator] SDA bases: r13 (_SDA_BASE_) 0x{sda1Base:X8}, r2 (_SDA2_BASE_) 0x{sda2Base:X8} " +
         $"(entry 0x{dol.EntryPoint:X8}).");
 
+    if (loadedProject.Inputs.Rels.Count > 0)
+    {
+        return new ProgramImageBuilder().BuildWithModules(
+            dol, LinkConfiguredModules(), loadedProject.Memory.Base, loadedProject.Memory.Size);
+    }
+
     var relImage = relFile.Value?.BuildImage(loadedProject.Inputs.Rel!.LoadAddress);
     return new ProgramImageBuilder().Build(dol, relImage, loadedProject.Memory.Base, loadedProject.Memory.Size);
+}
+
+// Relocates the modules of inputs.rels together, each at its configured load (and BSS) address.
+IReadOnlyList<RelImage> LinkConfiguredModules()
+{
+    var modules = RequireProject().Inputs.Rels;
+    return RelLinker.Link(
+        modules.Select(m => new RelModulePlacement(LoadConfiguredRel(m), m.LoadAddress)).ToArray());
+}
+
+static RelFile LoadConfiguredRel(ProjectRelInput input)
+{
+    var file = RelFile.Load(input.Path);
+    if (input.BssAddress is not { } bssAddress)
+    {
+        return file;
+    }
+
+    if (bssAddress < input.LoadAddress)
+    {
+        throw new InvalidDataException(
+            $"bss_address 0x{bssAddress:X8} of {input.Path} precedes its load_address 0x{input.LoadAddress:X8}.");
+    }
+
+    return file.WithBssOffset(bssAddress - input.LoadAddress);
 }
 
 DolFile LoadDol()
@@ -3743,7 +3799,7 @@ DolFile LoadDol()
 
 RelFile? LoadRel()
 {
-    return RequireProject().Inputs.Rel is { } rel ? RelFile.Load(rel.Path) : null;
+    return RequireProject().Inputs.Rel is { } rel ? LoadConfiguredRel(rel) : null;
 }
 
 static uint ParseAddress(string text) => GuestTargetParser.ParseHexAddress(text);

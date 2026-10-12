@@ -15,19 +15,36 @@ public sealed class RelFile
 
     private RelFile(byte[] raw,
         uint moduleId,
+        IReadOnlyList<RelSection> fileSections,
         IReadOnlyList<RelSection> sections,
         IReadOnlyList<RelImportEntry> imports,
-        uint totalSize)
+        byte bssSectionIndex,
+        uint bssSize,
+        uint bssAlign,
+        uint totalSize,
+        int copyLength)
     {
         _raw = raw;
         ModuleId = moduleId;
+        _fileSections = fileSections;
         Sections = sections;
         _imports = imports;
+        _bssSectionIndex = bssSectionIndex;
+        _bssSize = bssSize;
+        _bssAlign = bssAlign;
         _totalSize = totalSize;
+        _copyLength = copyLength;
     }
 
+    private readonly IReadOnlyList<RelSection> _fileSections;
     private readonly IReadOnlyList<RelImportEntry> _imports;
+    private readonly byte _bssSectionIndex;
+    private readonly uint _bssSize;
+    private readonly uint _bssAlign;
     private readonly uint _totalSize;
+    // Number of file bytes copied into the image. Everything from the BSS offset on is zero-filled,
+    // which matters when BSS reuses the space of the relocation tables (see WithBssOffset).
+    private readonly int _copyLength;
 
     /// <summary>Module id from the REL header (offset 0x00). Id 0 is reserved for the main DOL.</summary>
     public uint ModuleId { get; }
@@ -100,9 +117,53 @@ public sealed class RelFile
         return new RelFile(
             raw,
             moduleId,
+            new ReadOnlyCollection<RelSection>(sections),
             new ReadOnlyCollection<RelSection>(adjustedSections),
             new ReadOnlyCollection<RelImportEntry>(imports),
-            totalSize);
+            bssSectionIndex,
+            bssSize,
+            bssAlign,
+            totalSize,
+            raw.Length);
+    }
+
+    /// <summary>
+    /// Returns a copy of this module whose BSS starts at <paramref name="bssOffset"/> bytes from the
+    /// load address instead of after the whole file. Loaders such as <c>OSLinkFixed</c> free the
+    /// relocation tables once a module is linked and place BSS in that space, at load address +
+    /// <c>fixSize</c> rounded up; this lets the image match such a layout exactly.
+    /// </summary>
+    public RelFile WithBssOffset(uint bssOffset)
+    {
+        if (bssOffset % _bssAlign != 0)
+        {
+            throw new InvalidDataException(
+                $"BSS offset 0x{bssOffset:X} of module {ModuleId} is not aligned to 0x{_bssAlign:X}");
+        }
+
+        foreach (var section in _fileSections)
+        {
+            var isBss = section.FileOffset == 0 && (section.Size != 0 || section.Index == _bssSectionIndex);
+            if (!isBss && section.Size != 0 && checked(section.FileOffset + section.Size) > bssOffset)
+            {
+                throw new InvalidDataException(
+                    $"BSS offset 0x{bssOffset:X} of module {ModuleId} overlaps section {section.Index} " +
+                    $"(0x{section.FileOffset:X}-0x{section.FileOffset + section.Size:X})");
+            }
+        }
+
+        var adjusted = ApplyBssLayout(_fileSections.ToList(), _bssSectionIndex, bssOffset, _bssSize);
+        return new RelFile(
+            _raw,
+            ModuleId,
+            _fileSections,
+            new ReadOnlyCollection<RelSection>(adjusted),
+            _imports,
+            _bssSectionIndex,
+            _bssSize,
+            _bssAlign,
+            checked(bssOffset + _bssSize),
+            (int)Math.Min((uint)_raw.Length, bssOffset));
     }
 
     private static List<RelSection> ParseSections(byte[] raw, uint offset, uint count)
@@ -199,7 +260,7 @@ public sealed class RelFile
         bool applyRelocations = true)
     {
         var buffer = new byte[checked((int)_totalSize)];
-        Buffer.BlockCopy(_raw, 0, buffer, 0, _raw.Length);
+        Buffer.BlockCopy(_raw, 0, buffer, 0, _copyLength);
 
         if (applyRelocations)
         {
@@ -220,7 +281,7 @@ public sealed class RelFile
         uint dolBaseAddress)
     {
         var buffer = new byte[checked((int)_totalSize)];
-        Buffer.BlockCopy(_raw, 0, buffer, 0, _raw.Length);
+        Buffer.BlockCopy(_raw, 0, buffer, 0, _copyLength);
         ApplyRelocations(buffer, baseAddress, dolBaseAddress, linkedModules);
         return new RelImage(buffer, baseAddress, ModuleId);
     }
