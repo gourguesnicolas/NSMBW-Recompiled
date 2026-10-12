@@ -1,5 +1,5 @@
-# TEMPLATE - not a working manifest yet. Values below were read from a SMNE01 revision 2 dump
-# (see README.md). The remaining TODOs need a run-time observation or a translator change.
+# TEMPLATE - not a working manifest yet. Values below were read from a SMNE01 revision 2 dump and
+# from the game's module list in Dolphin (see README.md). What remains is a translator change (#10).
 schema_version: 1
 workspace_root: ../..
 
@@ -21,20 +21,25 @@ inputs:
     sha256: 0373b4dbffd7c9da9d27eb7257a7677877a3e33ceb81818bab1daa93560b9907
 
   # The schema currently accepts ONE rel. This game has four modules that import from each other,
-  # so they must be translated together. Multi-REL support is an M1 task. Load addresses are
-  # decided at run time by the game's heap and are still TODO.
+  # so they must be translated together; the `rels` list below is the planned schema (#10).
+  # Addresses were read from the game's module list in Dolphin (see README.md). BSS is given
+  # explicitly because the game places it at load + fixSize, not after the whole file.
   # rels:
   #   - path: Assets/d_profileNP.rel   # module 1
-  #     load_address: TODO
+  #     load_address: 0x80768500
+  #     bss_address: 0x8076D4A0
   #     sha256: d6b738eb779d0b0b48f0b6d350e8955d51cbbdf0fb46ffdb621d9538c8fd67c7
   #   - path: Assets/d_basesNP.rel     # module 2
-  #     load_address: TODO
+  #     load_address: 0x8076D6C0
+  #     bss_address: 0x80990840
   #     sha256: 7f0fb0d0f91e4e82e3d01b9aee3546182fce7acfcd142e3f900dea9a5472f128
   #   - path: Assets/d_enemiesNP.rel   # module 3
-  #     load_address: TODO
+  #     load_address: 0x809A2CE0
+  #     bss_address: 0x80B11460
   #     sha256: 0f3af075bb64e86abfbcdb31def285f67557814656afde8aefa1dc3016e23f87
   #   - path: Assets/d_en_bossNP.rel   # module 4
-  #     load_address: TODO
+  #     load_address: 0x80B1C960
+  #     bss_address: 0x80B89AE0
   #     sha256: 8c5d5649d45b461061cd6e633909b9bd8bb9b0380f45745de0cf81cf2c5ca277
 
 translation:
