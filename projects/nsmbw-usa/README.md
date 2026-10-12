@@ -129,3 +129,20 @@ python3 scripts/coverage.py projects/nsmbw-usa/recomp.yml generated/functions --
 
 Leaf functions with no prologue and never referenced by a call or a pointer are not found by this
 method; the script lists how many candidates remain untranslated.
+
+## Symbol names
+
+`scripts/port_symbols.py` ports the community's PAL v1 symbols to this revision. It reads two public
+files from the NSMBW-Community organisation (`NSMBW-Maps/address-map.txt` and `NSMBW-Decomp/syms.txt`)
+and composes the address map P1 -> E1 -> E2. Of 1,045 symbols, 1,044 map; 694 name a function start
+already in `MAP.txt` and 350 add new ones. Only names and addresses are kept; the two source files
+are fetched, not stored here, because neither repository declares a licence (see issue #6).
+
+```sh
+python3 scripts/port_symbols.py --fetch <dir>
+python3 scripts/port_symbols.py <dir> projects/nsmbw-usa/MAP.txt
+```
+
+Those symbols are mostly game code (`d*`, `da*`, `m*`). Only a handful are SDK functions
+(`OSCreateThread`, `OSResumeThread`, `OSSuspendThread`, `VIWaitForRetrace`, ...), so most of the 55
+runtime HLE hooks still have to be located in this DOL by other means.
