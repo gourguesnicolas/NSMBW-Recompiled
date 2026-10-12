@@ -1,8 +1,8 @@
 # Runtime HLE hooks: where each function is in SMNE01 rev 2
 
 The inherited runtime replaces about 55 SDK functions with host implementations, keyed by Mario Kart
-Wii addresses (issue #51). This file records where the same functions are in this game's `main.dll`
-image (`main.dol`). Addresses and public SDK function names only.
+Wii addresses (issue #51). This file records where the same functions are in this game's
+`main.dol`. Addresses and public SDK function names only.
 
 **Method.** The SDK object files keep their function order between games but not their exact sizes,
 so a constant offset does not work. Each function was located by (1) community symbols mapped to this
