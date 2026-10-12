@@ -17,7 +17,7 @@ body:
       options:
         - label: The behaviour is correct on Dolphin or a real console with the same clean image.
           required: true
-        - label: I am not attaching any game data (see LEGAL.md).
+        - label: I am not attaching any game data (see docs/LEGAL.md).
           required: true
   - type: input
     id: image

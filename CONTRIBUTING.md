@@ -61,7 +61,7 @@ and vice versa. Check each project's own CONTRIBUTING file.
 
 This repository is a fork of WiiCompiled. Everything above still applies, plus:
 
-- Read [LEGAL.md](LEGAL.md). Translator output counts as game data and never goes in a commit.
+- Read [LEGAL.md](docs/LEGAL.md). Translator output counts as game data and never goes in a commit.
 - Runtime changes must respect the seven determinism rules in
   [docs/nsmbw/architecture.md](docs/nsmbw/architecture.md).
 - Changes that are not specific to this game should be written so they can be proposed upstream.
