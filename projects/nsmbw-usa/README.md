@@ -146,3 +146,26 @@ python3 scripts/port_symbols.py <dir> projects/nsmbw-usa/MAP.txt
 Those symbols are mostly game code (`d*`, `da*`, `m*`). Only a handful are SDK functions
 (`OSCreateThread`, `OSResumeThread`, `OSSuspendThread`, `VIWaitForRetrace`, ...), so most of the 55
 runtime HLE hooks still have to be located in this DOL by other means.
+
+## Building the executable
+
+`recomp.yml` sets `runtime.native_hooks: false`. The runtime's hand-written hooks are keyed by Mario Kart
+Wii addresses and 13 of them are the start of another function in this game, so none of them may apply
+until they are ported (`docs/nsmbw/hle-hooks.md`, issue #51). The translator then translates every
+address and the runtime build disables the hooks. OS, VI, DVD and GX functions run as translated game
+code for now.
+
+```powershell
+./Launcher/Prepare-PortableTools.ps1        # pinned llvm-mingw, CMake and Ninja, kept out of git
+./Launcher/Prepare-Dependencies.ps1         # pinned third-party sources
+$t = 'translator/src/Translator.Cli/bin/Release/net8.0/Translator.Cli.dll'
+dotnet $t translate-recursive 0x80004050 --project projects/nsmbw-usa/recomp.yml --output-metadata generated/base_translation_output.json
+dotnet $t generate-data-init --project projects/nsmbw-usa/recomp.yml
+dotnet $t emit-build-shards --project projects/nsmbw-usa/recomp.yml
+# configure with Get-MkwNativeConfigureArguments (Launcher/NativeBuildFlags.ps1), then:
+cmake --build build/nsmbw --target WiiCompiled --parallel 16
+```
+
+Status: the full runtime and all 40,958 translated functions compile and link into `WiiCompiled.exe`
+(about 79 MiB). It has not been run. Calling a Mario Kart Wii callback stops the process with a message
+that names the address.
