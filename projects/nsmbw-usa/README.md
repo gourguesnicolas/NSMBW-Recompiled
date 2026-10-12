@@ -60,12 +60,34 @@ BSS section (s6).
 
 Module 0 is `main.dol`. The modules reference each other, so they must be relocated together.
 
+## Where the game loads the modules
+
+Read from the OS module list (`0x800030C8` head, `0x800030CC` tail) in Dolphin at the title screen,
+then cross-checked against the files. The game loads the four modules once, back to back, in id
+order.
+
+| Module | Load address (header) | Code s1 | BSS s6 | BSS end |
+| --- | --- | --- | --- | --- |
+| `d_profileNP` (1) | `0x80768500` | `0x807685E0` | `0x8076D4A0` | `0x8076D6A8` |
+| `d_basesNP` (2) | `0x8076D6C0` | `0x8076D7B0` | `0x80990840` | `0x809A2CC4` |
+| `d_enemiesNP` (3) | `0x809A2CE0` | `0x809A2DD0` | `0x80B11460` | `0x80B1C940` |
+| `d_en_bossNP` (4) | `0x80B1C960` | `0x80B1CA50` | `0x80B89AE0` | `0x80B8E35C` |
+
+- Every non-BSS section sits at load address + its file offset.
+- **BSS is not placed after the whole file.** The game links the modules with `OSLinkFixed`, which
+  frees the relocation tables, and puts BSS at load address + `fixSize` (header offset 0x48),
+  rounded up to 32 bytes. This holds for all four modules. The translator's current single-REL
+  layout places BSS after the whole file instead, so the manifest must give each BSS address
+  explicitly.
+- Everything ends at `0x80B8E35C`, well inside MEM1.
+
+Still worth confirming once: that these addresses are the same after a reset and inside a level.
+
 ## Still to determine
 
-1. **REL load addresses.** RELs are loaded into a heap at run time, so their addresses are not in
-   the files. Candidates: read them from a Dolphin session at the main menu, or from the NSMBW
-   modding community's address maps for this revision.
-2. **Multi-REL support** in the manifest schema and the translator (tracked in its own issue).
+1. ~~REL load addresses~~: done, see the table above.
+2. **Multi-REL support** in the manifest schema and the CLI. The translator core can link several
+   modules (#40); the manifest schema and the BSS placement above are still to wire in (#10).
 3. **Guest memory size.** MEM1 is 24 MiB (`0x01800000`); confirm whether anything outside it must
    be mapped.
 4. **Function map.** Community symbols target PAL v1 and must be ported to these addresses.
