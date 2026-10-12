@@ -14,8 +14,8 @@ before making design decisions.
 - **Keep generic translator changes proposable upstream** (WiiCompiled). Keep them isolated from
   NSMBW-specific changes in separate PRs. Upstream requires PR descriptions written by the user,
   not generated: draft notes, but leave the description to them.
-- `allow_unsupported_instructions: true` in `projects/nsmbw-usa/recomp.yml` is temporary (M1 only).
-  It must be `false` before anything ships (#9).
+- `allow_unsupported_instructions` is `false` in `projects/nsmbw-usa/recomp.yml`. Keep it that way:
+  an instruction the translator cannot handle must fail the build, not become a runtime trap.
 - Runtime changes must respect the seven determinism rules in `docs/nsmbw/architecture.md`.
 
 ## Project facts (SMNE01 rev 2)
@@ -48,7 +48,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 ## Status and next steps
 
 M0 (foundations) is nearly done; M1 (translation) is in progress. Next: #8 (`info` on the user's
-files), #9 (list and implement the unsupported instructions), #13 (compile and link), #14 (inventory
+files), #9 (done: zero unsupported instructions), #13 (compile and link), #14 (inventory
 of Wii system calls), #15 (runtime determinism audit). Known large task in M2: the inherited runtime
 still assumes Mario Kart Wii's single module (hard-coded addresses in
 `runtime/src/system_bridge.cpp` and `runtime/src/hle/os/os_init.cpp`).
