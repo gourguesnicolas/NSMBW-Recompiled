@@ -49,7 +49,9 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 M0 is done. M1: the translator reaches 40,958 functions in strict mode and the executable compiles and
 links (#13). `runtime.native_hooks: false` keeps the runtime's Mario Kart Wii hooks off. The hooks for
-this game live in `runtime/src/hle/profiles/smne01` (24 so far: threads, mutexes, messages, contexts,
-interrupts, alarms; addresses in `docs/nsmbw/os-layout.md`). They have not run yet (#16). The rest of the
-hooks (#51, `docs/nsmbw/hle-hooks.md`) and the inventory in `docs/nsmbw/sdk-inventory.md` (#14) come next,
-then the determinism audit (#15).
+this game live in `runtime/src/hle/profiles/smne01` (OS, interrupts, EXI, SI, STM, IPC, audio start-up;
+addresses in `docs/nsmbw/hle-hooks.md` and `docs/nsmbw/os-layout.md`). M2 (#16): the executable starts,
+passes `OSInit` and stops in the DVD layer. Run it with a portable layout in `build/nsmbw` (`portable.txt`
+and `UserData/Config.toml` with `[paths] dvd_root` set to the extracted disc). Low-memory boot values
+are per profile in `runtime/src/hle/os/os_layout.h`. The rest of the hooks (#51) and the inventory in
+`docs/nsmbw/sdk-inventory.md` (#14) come next, then the determinism audit (#15).

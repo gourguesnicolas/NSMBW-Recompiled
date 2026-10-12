@@ -64,10 +64,13 @@ void WriteCrashArtifacts(std::string_view reason,
 // isa/ppc_isa_context.h - that is its standalone host seam, not a duplicate.)
 void ShowRuntimeFatalPopup(std::string_view category, std::string_view details) noexcept;
 
-// Mario Kart Wii's translated entry point. The products always boot here, so
-// this is applied as the default while parsing the command line; there is no
-// flag to override it.
+// The game's translated entry point (its _start). The products always boot here; there is no flag
+// to override it. Mario Kart Wii's by default, the project's own when a hook profile is selected.
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+inline constexpr uint32_t kDefaultEntryAddress = 0x80004050u;
+#else
 inline constexpr uint32_t kDefaultEntryAddress = 0x800060A4u;
+#endif
 
 class SystemBridge {
 public:

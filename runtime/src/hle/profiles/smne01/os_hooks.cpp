@@ -42,6 +42,25 @@ uint32_t OS__GetCurrentThread_801a98b0_hle();
 int32_t OS__DisableInterrupts_801a65ac();
 int32_t OS__EnableInterrupts_801a65c0();
 int32_t OS__RestoreInterrupts_801a65d4(int32_t level);
+uint32_t __OSSetInterruptHandler_801a65f8_hle(uint32_t interrupt, uint32_t handler);
+uint32_t OS____InterruptInit_801a661c(uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8);
+uint32_t SetInterruptMask_801a66e0(uint32_t mask, uint32_t enable);
+uint32_t OS____MaskInterrupts_801a693c(uint32_t mask, uint32_t unmask);
+uint32_t __OSUnmaskInterrupts_801a69bc_hle(uint32_t mask);
+uint32_t EXIInit_80168fa0();
+void SetExiInterruptMask_80167e78(uint32_t channel, uint32_t exi_struct_ptr);
+uint32_t EXIImm_80167f68(uint32_t channel, uint32_t buffer, uint32_t length, uint32_t type, uint32_t callback);
+uint32_t EXIDma_80168288(uint32_t channel, uint32_t buffer, uint32_t length, uint32_t type, uint32_t callback);
+uint32_t EXISync_80168380(uint32_t channel);
+uint32_t EXISelect_801689d0(uint32_t channel, uint32_t device, uint32_t frequency);
+uint32_t EXIDeselect_80168b00(uint32_t channel);
+uint32_t EXIUnlock_80169260(uint32_t channel);
+void SIInit_801b2de0();
+int32_t IPCCltInit_80193478(CpuContext* ctx);
+uint32_t OS____InitMemoryProtection_801a7dfc(uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8);
+uint32_t OSGetResetCode_801a8a50();
+void HLE_SISetSamplingRate_801b3acc(uint32_t msec);
+uint32_t __OSInitSTM_HLE_801ab848(CpuContext* ctx);
 void OSSetAlarm_HLE_801a0870(CpuContext* ctx);
 void OS__SetPeriodicAlarm_801a08e0(CpuContext* ctx);
 }
@@ -78,6 +97,38 @@ PPC_NATIVE_OVERRIDE_VOID(801ACE30, OS__LoadContext_801a1f58, (CpuContext* ctx), 
 PPC_NATIVE_OVERRIDE(801B1140, OS__DisableInterrupts_801a65ac, int32_t, (), ());
 PPC_NATIVE_OVERRIDE(801B1160, OS__EnableInterrupts_801a65c0, int32_t, (), ());
 PPC_NATIVE_OVERRIDE(801B1180, OS__RestoreInterrupts_801a65d4, int32_t, (int32_t level), (level));
+// __OSInterruptInit and the controller mask code, which read and write the PI/MI registers
+// (0xCC003004, 0xCC004010) that the runtime does not emulate.
+REGISTER_NATIVE_FUNCTION(0x801B11B0, __OSSetInterruptHandler_801a65f8_hle);
+PPC_NATIVE_OVERRIDE(801B11E0, OS____InterruptInit_801a661c, uint32_t, (uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8), (r3, r4, r5, r6, r7, r8));
+PPC_NATIVE_OVERRIDE(801B12B0, SetInterruptMask_801a66e0, uint32_t, (uint32_t mask, uint32_t enable), (mask, enable));
+PPC_NATIVE_OVERRIDE(801B1510, OS____MaskInterrupts_801a693c, uint32_t, (uint32_t mask, uint32_t unmask), (mask, unmask));
+REGISTER_NATIVE_FUNCTION(0x801B1590, __OSUnmaskInterrupts_801a69bc_hle);
+
+// EXI (EXI.c): the memory card, RTC and SRAM ports. Their registers are at 0xCD006800 and nothing in
+// this runtime answers them, so the same stubs as for Mario Kart Wii report success. The control block
+// array they index is at 0x8038F710 (0x40 bytes per channel).
+PPC_NATIVE_OVERRIDE(801B9BA0, EXIInit_80168fa0, uint32_t, (), ());
+PPC_NATIVE_OVERRIDE_VOID(801B8A30, SetExiInterruptMask_80167e78, (uint32_t channel, uint32_t exi_struct_ptr), (channel, exi_struct_ptr));
+PPC_NATIVE_OVERRIDE(801B8B20, EXIImm_80167f68, uint32_t, (uint32_t channel, uint32_t buffer, uint32_t length, uint32_t type, uint32_t callback), (channel, buffer, length, type, callback));
+PPC_NATIVE_OVERRIDE(801B8E50, EXIDma_80168288, uint32_t, (uint32_t channel, uint32_t buffer, uint32_t length, uint32_t type, uint32_t callback), (channel, buffer, length, type, callback));
+PPC_NATIVE_OVERRIDE(801B8F50, EXISync_80168380, uint32_t, (uint32_t channel), (channel));
+PPC_NATIVE_OVERRIDE(801B95C0, EXISelect_801689d0, uint32_t, (uint32_t channel, uint32_t device, uint32_t frequency), (channel, device, frequency));
+PPC_NATIVE_OVERRIDE(801B96F0, EXIDeselect_80168b00, uint32_t, (uint32_t channel), (channel));
+PPC_NATIVE_OVERRIDE(801B9E70, EXIUnlock_80169260, uint32_t, (uint32_t channel), (channel));
+
+// Serial interface and STM (SI.c, OSStateTM.c): both open hardware this runtime does not model.
+REGISTER_NATIVE_FUNCTION(0x801BAEF0, SIInit_801b2de0);
+PPC_NATIVE_OVERRIDE_VOID(801BB840, HLE_SISetSamplingRate_801b3acc, (uint32_t msec), (msec));
+PPC_NATIVE_OVERRIDE(801B6820, __OSInitSTM_HLE_801ab848, uint32_t, (CpuContext* ctx), (ctx));
+
+// Memory protection (MI registers at 0xCC004000) and the reset code (PI register 0xCC003024).
+PPC_NATIVE_OVERRIDE(801B2D50, OS____InitMemoryProtection_801a7dfc, uint32_t, (uint32_t r3, uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7, uint32_t r8), (r3, r4, r5, r6, r7, r8));
+PPC_NATIVE_OVERRIDE(801B3C90, OSGetResetCode_801a8a50, uint32_t, (), ());
+
+// IPC client (ipcMain.c): initialises the IPC buffer window, skips the interrupt handler and the
+// IPC registers at 0xCD000000.
+PPC_NATIVE_OVERRIDE(802247D0, IPCCltInit_80193478, int32_t, (CpuContext* ctx), (ctx));
 
 // Alarms (OSAlarm.c).
 PPC_NATIVE_OVERRIDE_VOID(801AB540, OSSetAlarm_HLE_801a0870, (CpuContext* ctx), (ctx));

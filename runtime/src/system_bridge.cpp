@@ -25,6 +25,7 @@
 #include "runtime_log.h"
 #include "runtime_product.h"
 #include "timebase_contract.h"
+#include "hle/os/os_layout.h"
 
 // Global flag to suppress SEH reporting during static constructor execution
 bool g_suppressSehReporting = false;
@@ -484,7 +485,7 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
     };
 
     std::vector<SeedEntry> entries;
-    constexpr uint32_t kMem1ArenaLoDefault = 0x80399180u;
+    constexpr uint32_t kMem1ArenaLoDefault = OsHleInternal::kBootMem1ArenaLo;
     uint32_t mem1ArenaHiDefault = 0x817f0520u;
     constexpr uint32_t kBusClockHz =
         static_cast<uint32_t>(TimeBaseContract::kBusClockHz);
@@ -492,8 +493,8 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
     // Mario Kart Wii boots under IOS36. These are the IOS kernel values that
     // Dolphin exposes in low memory for IOS36 (VersionInfo.cpp). SDK helpers
     // read them through the 0xC0000000 MEM1 alias.
-    constexpr uint32_t kIos36Version = 0x00240E18u;
-    constexpr uint32_t kIos36Date = 0x00030110u;
+    constexpr uint32_t kIos36Version = OsHleInternal::kBootIosVersion;
+    constexpr uint32_t kIos36Date = OsHleInternal::kBootIosDate;
 
     constexpr uint32_t kMem2LoFloor = 0x90000800u;
     // Reserve enough guest memory for the runtime-built DVD FST.
@@ -508,10 +509,10 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
     // Retro Rewind reads the region byte directly from here while building its
     // Retro-WFC payload URL, and OSGetAppGamename reads the app code mirrors
     // at 0x80003180/0x80003194 while building NAS auth fields.
-    entries.push_back({0x80000000u, 0x524D4350u, "Disc game code"}); // RMCP
-    entries.push_back({0x80000004u, 0x30310100u, "Disc maker/id"});  // 01 + disc 1
-    entries.push_back({0x80003180u, 0x524D4350u, "OS app game code"}); // RMCP
-    entries.push_back({0x80003194u, 0x524D4350u, "OS app gamename"});  // RMCP
+    entries.push_back({0x80000000u, OsHleInternal::kBootDiscGameCode, "Disc game code"});
+    entries.push_back({0x80000004u, OsHleInternal::kBootDiscMakerInfo, "Disc maker/id"});
+    entries.push_back({0x80003180u, OsHleInternal::kBootDiscGameCode, "OS app game code"});
+    entries.push_back({0x80003194u, OsHleInternal::kBootDiscGameCode, "OS app gamename"});
     if (RuntimeProduct::IsRetroRewind()) {
         entries.push_back({0x800017D8u, 0x00000001u, "Retro Rewind recomp runtime marker", true});
     }
@@ -534,6 +535,9 @@ void SystemBridge::SeedLowMemDefaults(const Memory::Config& config) {
     entries.push_back({0x800000FCu, kCpuClockHz, "__OSClock"});
     entries.push_back({0x80003140u, kIos36Version, "IOS36 version"});
     entries.push_back({0x80003144u, kIos36Date, "IOS36 date"});
+    // The IOS the title asks for (major in the high half). The SDK refuses to start when the running
+    // IOS differs; zero keeps the entry unseeded.
+    entries.push_back({0x80003188u, OsHleInternal::kBootRequiredIos, "Required IOS"});
 
     if (mem1Size != 0) {
         const uint32_t mem1End = Memory::kMem1CachedBase + mem1Size;
