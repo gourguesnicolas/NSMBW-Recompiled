@@ -149,11 +149,12 @@ runtime HLE hooks still have to be located in this DOL by other means.
 
 ## Building the executable
 
-`recomp.yml` sets `runtime.native_hooks: false`. The runtime's hand-written hooks are keyed by Mario Kart
-Wii addresses and 13 of them are the start of another function in this game, so none of them may apply
-until they are ported (`docs/nsmbw/hle-hooks.md`, issue #51). The translator then translates every
-address and the runtime build disables the hooks. OS, VI, DVD and GX functions run as translated game
-code for now.
+`recomp.yml` sets `runtime.native_hooks: false`. The runtime's hand-written hooks in `runtime/src` are keyed
+by Mario Kart Wii addresses and 13 of them are the start of another function in this game, so none of them
+applies. The hooks written for this game are in `runtime/src/hle/profiles/smne01` (`hook_profile: smne01`,
+also `native_registration_root`): threads, mutexes, message queues, contexts, interrupt enable/disable and
+alarms, 24 in all, with the OS data addresses in `docs/nsmbw/os-layout.md`. Everything else, including VI,
+DVD, audio and GX, runs as translated game code for now (`docs/nsmbw/hle-hooks.md`, issue #51).
 
 ```powershell
 ./Launcher/Prepare-PortableTools.ps1        # pinned llvm-mingw, CMake and Ninja, kept out of git

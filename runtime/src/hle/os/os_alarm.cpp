@@ -14,8 +14,32 @@
 #include "generated/RuntimeConfig.h"
 #include "os_internal.h"
 
+#if !defined(MKW_HOOK_PROFILE_SMNE01)
 extern "C" void func_801AADE0(CpuContext* ctx);
 extern "C" void func_801A0620(CpuContext* ctx);
+#endif
+
+namespace {
+// The two guest functions behind OSSetAlarm and OSSetPeriodicAlarm. Mario Kart Wii links them by
+// symbol; another game reaches them through the dispatch table (addresses in os_layout.h).
+inline void GuestOsTimeHelper(CpuContext* cpu)
+{
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+    InvokeIndirectCpu(kGuestOsTimeHelper, cpu);
+#else
+    func_801AADE0(cpu);
+#endif
+}
+
+inline void GuestOsInsertAlarm(CpuContext* cpu)
+{
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+    InvokeIndirectCpu(kGuestOsInsertAlarm, cpu);
+#else
+    func_801A0620(cpu);
+#endif
+}
+} // namespace
 
 // ============================================================================
 // Alarm queue helpers
@@ -208,7 +232,7 @@ bool ProcessAlarmQueue(CpuContext* cpu, int maxToProcess)
                     cpu->gpr[5] = 0;
                     cpu->gpr[6] = 0;
                     cpu->gpr[7] = handler;
-                    func_801A0620(cpu);
+                    GuestOsInsertAlarm(cpu);
                 }
 
                 if (handler != 0) {
@@ -422,7 +446,7 @@ extern "C" void OS__SetPeriodicAlarm_801a08e0(CpuContext* ctx)
 
     cpu->gpr[3] = startHi;
     cpu->gpr[4] = startLo;
-    func_801AADE0(cpu);
+    GuestOsTimeHelper(cpu);
     Memory::Write32(alarm + 0x20u, cpu->gpr[3]);
     Memory::Write32(alarm + 0x24u, cpu->gpr[4]);
 
@@ -430,7 +454,7 @@ extern "C" void OS__SetPeriodicAlarm_801a08e0(CpuContext* ctx)
     cpu->gpr[5] = 0;
     cpu->gpr[6] = 0;
     cpu->gpr[7] = handler;
-    func_801A0620(cpu);
+    GuestOsInsertAlarm(cpu);
 
     cpu->gpr[3] = static_cast<uint32_t>(OS__RestoreInterrupts_801a65d4(level));
 }
