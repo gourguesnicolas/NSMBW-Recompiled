@@ -1,7 +1,9 @@
 # Runtime HLE hooks: where each function is in SMNE01 rev 2
 
-The inherited runtime replaces about 55 SDK functions with host implementations, keyed by Mario Kart
-Wii addresses (issue #51). This file records where the same functions are in this game's
+The inherited runtime replaces 583 functions with host implementations (`PPC_NATIVE_OVERRIDE*` and
+`REGISTER_NATIVE_FUNCTION*`), keyed by Mario Kart Wii addresses (issue #51). About 55 of them are named
+`*_HLE_<address>`; the rest are GX (about 330, most of them in `gx_fatal_stubs.cpp`), audio, NAND,
+input and OS hooks. This file records where the same functions are in this game's
 `main.dol`. Addresses and public SDK function names only.
 
 **Method.** The SDK object files keep their function order between games but not their exact sizes,
@@ -64,13 +66,30 @@ instruction sequence. Confidence: **high** means the code matches the SDK functi
 | `VIGetNextField` | `0x801BABAC` | `0x801BDEE0` | medium | size `0xA0` vs `0x9C` |
 | `VIGetCurrentLine` | `0x801BAC48` | `0x801BDF80` | medium | size `0x90` |
 | `VIInit` | `0x801B94A4` | `0x801BC7A0` | medium | the only large function where predicted; may have absorbed `__VIInit` |
-| `VISetPreRetraceCallback` | `0x801B90F4` | `0x801BC3E0` | low | predicted `0x801BC3F8`, nearest candidate, size `0x50` |
-| `VISetPostRetraceCallback` | `0x801B9138` | `0x801BC430` | low | predicted `0x801BC43C`, nearest candidate, size `0x50` |
+| `VISetPreRetraceCallback` | `0x801B90F4` | `0x801BC3E0` | high | called by `OSFatal` to clear the callback; size `0x50` |
+| `VISetPostRetraceCallback` | `0x801B9138` | `0x801BC430` | high | called by `OSFatal` to clear the callback; size `0x50` |
+| `__VIInit` | `0x801B9294` | `0x801BC5A0` | high | called by `VIInit`, size `0x200` vs `0x210`, writes the VI registers |
+| `VIGetDTVStatus` | `0x801BAD38` | `0x801BE070` | medium | exactly `0xF0` after `VIGetCurrentLine`, as in Mario Kart Wii |
+| `OSFatal` | `0x801A4EC4` | `0x801AF5D0` | high | takes `(fg, bg, message)`, clears both retrace callbacks, calls `VIInit`, `VISetBlack`, `VIFlush`; draws through `0x801AF7C0` |
+| `__OSInitSTM` | `0x801AB848` | `0x801B6820` | high | the only function that references both `/dev/stm/immediate` and `/dev/stm/eventhook` |
+| `DVDReadAsyncPrio` (`DVD__ReadAsyncPrio`) | `0x8015E74C` | `0x801CAA30` | high | holds the string `DVDReadAsync(): specified area is out of the file` |
+| `DVDReadPrio` | `0x8015E834` | `0x801CAB20` | high | `0xF0` after the async one in both games, blocks through `OSSleepThread` |
+| `DVDReadAbsAsyncPrio` (`DVD__ReadAbsAsyncPrio`) | `0x801628CC` | `0x801CECC0` | high | the callee shared by both functions above |
+| `ISFS_OpenLib` | `0x80169BCC` | `0x80226490` | medium | the only function using `/dev/fs`; the body was not read in full |
 
-## Not found yet
+## Not found, or no counterpart
 
-`__VIInit`, `VIGetDTVStatus`, `OS__SleepTicks`, `OSFatal`, `__OSInitSTM`, `DVD__ReadAsyncPrio`,
-`DVD__ReadAbsAsyncPrio`, `ConsoleWrite`, `RFLiIsWorking`, `GKI_delay`, `BTM_IsDeviceUp`,
-`ISFS_OpenLib`, `NAND_IOS_OpenBody`, `NHTTPStartup_Reentrant`, the two `EGG::` hooks and
-`TaskThread_run`. Several of them belong to Mario Kart Wii only (`RFL`, `GKI`, `BTM`, `NHTTP`,
-`TaskThread`) and probably have no counterpart.
+- `OS__SleepTicks`: no function calls both `OSSetAlarm` and `OSSleepThread`; probably inlined.
+- `ConsoleWrite`, `GKI_delay`, `BTM_IsDeviceUp`, `NAND_IOS_OpenBody`, the two `EGG::` hooks and
+  `TaskThread_run`: not located yet.
+- `RFLiIsWorking`, `NHTTPStartup_Reentrant`: the game contains no `RFL` or `NHTTP` string, so these
+  libraries are most likely not linked (Mario Kart Wii only).
+
+## Hook addresses that land on unrelated SMNE01 functions
+
+Of the 583 hook addresses, 13 are the start of a different function in this game. Registered as they
+are, the runtime would replace those functions with Mario Kart Wii code, so the hook table has to
+become per game before anything runs (#51):
+
+`80048C30 801240B0 80166330 8016D3C0 8016D580 8016DA60 8016DAA0 80171E10 80171FD0 80172E00 80173920 80197380 801A00E0`
+
