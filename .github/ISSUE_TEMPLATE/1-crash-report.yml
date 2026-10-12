@@ -9,27 +9,29 @@ body:
         Thanks for the report! Crashes are almost impossible to fix without logs, so please fill this in fully.
 
         **Where to find your logs** (paste the path into the File Explorer address bar):
-        - Playing through **WheelWizard** (most people): `%APPDATA%\CT-MKWII\Recomp\UserData\Logs`
-        - Installed with the standalone setup exe: `%LOCALAPPDATA%\WiiCompiled\Logs`
+        - `%LOCALAPPDATA%\WiiCompiled\Logs` (the runtime still uses this folder name)
+        - A portable build keeps them in the `UserData\Logs` folder next to it.
 
         Every run gets its own folder. Open the **newest** one and attach (drag & drop) `console.log` and any `crash_*.txt` file from it.
+
+        Do not attach game files, disc images or translator output (see docs/LEGAL.md).
   - type: checkboxes
     id: preflight
     attributes:
       label: Before you continue
       options:
-        - label: I'm on the latest release of WiiCompiled.
+        - label: I'm on the latest commit of `main` (or the latest release, once there is one).
           required: true
         - label: I searched the existing issues and nobody has reported this crash yet.
           required: true
-        - label: This is about the game runtime, not the WheelWizard app itself (WheelWizard problems go to their tracker - see the link on the "New issue" page).
+        - label: The same disc image runs correctly on Dolphin.
           required: true
   - type: input
     id: version
     attributes:
-      label: WiiCompiled version
-      description: It's the very first line of `console.log` (the log you're attaching below) - it starts with `[runtime] WiiCompiled v…`.
-      placeholder: "e.g. v0.2.12"
+      label: Version or commit
+      description: The first lines of `console.log` start with `[runtime] WiiCompiled` followed by the version. For a build from source, give the commit hash.
+      placeholder: "e.g. v0.1.0, or a1b2c3d"
     validations:
       required: true
   - type: dropdown
@@ -37,12 +39,12 @@ body:
     attributes:
       label: When does it crash?
       options:
-        - During startup / before the menus
-        - In the menus
-        - When loading a race
-        - During a race (offline)
-        - During a race (online)
-        - After finishing a race / results screen
+        - During startup / before the title screen
+        - On the title screen or in the menus
+        - While loading a level or the world map
+        - During a level (one player)
+        - During a level (several players)
+        - After completing a level
         - Randomly / no clear pattern
     validations:
       required: true
@@ -61,8 +63,8 @@ body:
     id: doing
     attributes:
       label: What were you doing when it crashed?
-      description: Game mode, track, character/vehicle, how many players, anything you pressed right before. The more specific, the better.
-      placeholder: "e.g. Retro Rewind online room, playing SNES Mario Circuit 3, crashed right as I crossed the finish line…"
+      description: Level or world map position, how many players, the controller, anything you pressed right before. The more specific, the better.
+      placeholder: "e.g. World 3-2, the second player was spinning on a seesaw platform, crashed as the midway flag was touched…"
     validations:
       required: true
   - type: textarea
