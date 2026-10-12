@@ -38,6 +38,9 @@ extern "C" void OS_HLE_EndDeferredGuestCallbacks();
 // renaming requires updating Translator.Cli/Program.cs, RuntimeNativeGuestEffectAnalyzer.cs,
 // TranslatedBuildShardEmitter.cs and RuntimeNativeFunctionAbiProvider.cs together.
 
+// With MKW_NATIVE_HOOKS=0 no func_<address> symbol is defined either, so the translator's own
+// function at that address is the only one.
+#if MKW_NATIVE_HOOKS
 #define PPC_NATIVE_OVERRIDE(addr_hex, name, ret_type, arg_list, call_list) \
     extern "C" ret_type func_##addr_hex arg_list { return name call_list; } \
     REGISTER_NATIVE_FUNCTION(0x##addr_hex, name)
@@ -45,3 +48,7 @@ extern "C" void OS_HLE_EndDeferredGuestCallbacks();
 #define PPC_NATIVE_OVERRIDE_VOID(addr_hex, name, arg_list, call_list) \
     extern "C" void func_##addr_hex arg_list { name call_list; } \
     REGISTER_NATIVE_FUNCTION(0x##addr_hex, name)
+#else
+#define PPC_NATIVE_OVERRIDE(addr_hex, name, ret_type, arg_list, call_list) static_assert(true, "")
+#define PPC_NATIVE_OVERRIDE_VOID(addr_hex, name, arg_list, call_list) static_assert(true, "")
+#endif

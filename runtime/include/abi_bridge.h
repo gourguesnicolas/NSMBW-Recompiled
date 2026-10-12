@@ -784,6 +784,14 @@ public:
 // Three hand-written registration macros. Generated code never registers per function; every
 // translated function reaches the registry via the bulk BulkTranslatedFunctionRecord tables
 // in the translator's *_registration TUs.
+// The addresses passed to these macros belong to one game (Mario Kart Wii). MKW_NATIVE_HOOKS=0 turns
+// every hand-written registration into nothing, for a project whose functions are elsewhere: the
+// translator then translates every address itself and the runtime replaces none of them.
+#ifndef MKW_NATIVE_HOOKS
+#define MKW_NATIVE_HOOKS 1
+#endif
+
+#if MKW_NATIVE_HOOKS
 #define REGISTER_TRANSLATED_FUNCTION(address, fn) \
     static AbiTrampoline<decltype(fn)> MKW_DETAIL_MAKE_UNIQUE(_abi_trampoline_, __COUNTER__)(address, #fn, fn, FunctionKind::BaseTranslated, false, kPpcAllNonvolatileFprMask, 0, 0, nullptr, KnownTranslatedCpuCall<address>::kMustRemainDynamicallyDispatchable)
 
@@ -792,3 +800,8 @@ public:
 
 #define REGISTER_NATIVE_FUNCTION_AS(address, fn, pretty_name) \
     static AbiTrampoline<decltype(fn)> MKW_DETAIL_MAKE_UNIQUE(_abi_native_trampoline_named_, __COUNTER__)(address, pretty_name, fn, FunctionKind::Native, false, kPpcAllNonvolatileFprMask, 0, 0, &AbiRawCpuThunk<&fn>::Invoke)
+#else
+#define REGISTER_TRANSLATED_FUNCTION(address, fn) static_assert(true, "")
+#define REGISTER_NATIVE_FUNCTION(address, fn) static_assert(true, "")
+#define REGISTER_NATIVE_FUNCTION_AS(address, fn, pretty_name) static_assert(true, "")
+#endif

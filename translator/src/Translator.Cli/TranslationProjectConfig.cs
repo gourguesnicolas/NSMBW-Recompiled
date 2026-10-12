@@ -108,7 +108,8 @@ internal sealed class TranslationProjectConfig
             .ToArray();
         var runtime = new ProjectRuntime(
             abiDirectories,
-            ResolvePath(workspaceRoot, dto.Runtime?.NativeRegistrationRoot ?? "runtime/src"));
+            ResolvePath(workspaceRoot, dto.Runtime?.NativeRegistrationRoot ?? "runtime/src"),
+            dto.Runtime?.NativeHooks ?? true);
         var outputRoot = ResolvePath(workspaceRoot, dto.Output?.Root ?? "generated");
         var output = new ProjectOutput(
             outputRoot,
@@ -438,6 +439,7 @@ internal sealed class TranslationProjectConfig
     {
         public List<string>? NativeAbiDirectories { get; init; }
         public string? NativeRegistrationRoot { get; init; }
+        public bool? NativeHooks { get; init; }
     }
 
     private sealed class OutputDto
@@ -501,9 +503,14 @@ internal sealed record ProjectTranslation(
     IReadOnlyList<uint> EntryPoints,
     string? FunctionMapPath,
     bool AllowUnsupportedInstructions);
+/// <param name="NativeHooks">
+/// False when the runtime's hand-written native hooks do not apply to this game: the native index is
+/// then empty, so the translator translates every address, and the runtime build disables the hooks.
+/// </param>
 internal sealed record ProjectRuntime(
     IReadOnlyList<string> NativeAbiDirectories,
-    string NativeRegistrationRoot);
+    string NativeRegistrationRoot,
+    bool NativeHooks = true);
 internal sealed record ProjectOutput(
     string Root,
     string Functions,
