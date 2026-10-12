@@ -324,6 +324,12 @@ endif()
 # a registration file is silently never compiled and never errors. The stale-glob
 # failure mode is worth far more than the milliseconds.
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+# Hook-profile registration files redefine MKW_NATIVE_HOOKS before their includes, so they must see
+# the real headers: no precompiled header and no unity batch.
+file(GLOB_RECURSE MKW_HOOK_PROFILE_SOURCES CONFIGURE_DEPENDS "src/hle/profiles/*.cpp")
+set_source_files_properties(${MKW_HOOK_PROFILE_SOURCES} PROPERTIES
+    SKIP_UNITY_BUILD_INCLUSION ON
+    SKIP_PRECOMPILE_HEADERS ON)
 if(MKW_PLATFORM_MACOS)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/guest_flat_memory.cpp")
     if(MKW_PLATFORM_MACOS_ARM64)
@@ -371,6 +377,13 @@ if(MKW_BUILD_PRODUCTS)
     if(NOT MKW_NATIVE_HOOKS)
         message(STATUS "Native hooks disabled: no function is replaced at a Mario Kart Wii address")
         add_compile_definitions(MKW_NATIVE_HOOKS=0)
+    endif()
+    # A project's hook profile selects runtime sources and constants written for its game
+    # (runtime.hook_profile in the manifest): MKW_HOOK_PROFILE_<NAME>=1.
+    if(MKW_HOOK_PROFILE)
+        string(TOUPPER "${MKW_HOOK_PROFILE}" MKW_HOOK_PROFILE_UPPER)
+        message(STATUS "Hook profile: ${MKW_HOOK_PROFILE}")
+        add_compile_definitions("MKW_HOOK_PROFILE_${MKW_HOOK_PROFILE_UPPER}=1")
     endif()
     set(MKW_HAVE_RETRO_REWIND ${MKW_HAVE_RETRO_REWIND_SHARDS})
     message(STATUS

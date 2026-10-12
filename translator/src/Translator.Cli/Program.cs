@@ -69,9 +69,7 @@ var canonicalIrStore = new CanonicalIrStore();
 var inferredGuestAbi = new Lazy<InferredGuestFunctionAbiProvider>(() =>
     new InferredGuestFunctionAbiProvider(image.Value, canonicalIrStore));
 var runtimeNativeIndex = new Lazy<RuntimeNativeIndex>(() =>
-    RequireProject().Runtime.NativeHooks
-        ? RuntimeNativeIndexBuilder.Build(RequireProject().Runtime.NativeRegistrationRoot)
-        : new RuntimeNativeIndex([], [], []));
+    RuntimeNativeIndexBuilder.Build(RequireProject().Runtime.NativeRegistrationRoot));
 // Void-stub signatures are only trusted as declared guest ABIs when the stub
 // lives under runtime.native_abi_directories (the vetted set); everywhere else
 // the C++ signature is documentation and the inferred ABI stays authoritative.
@@ -223,18 +221,18 @@ int RunEmitBuildShards(string[] argsTail)
     var baseMetadata = OptionValue(argsTail, "--base-metadata") ?? Path.Combine(root, "generated", "base_translation_output.json");
     var baseFunctions = OptionValue(argsTail, "--base-functions-dir") ?? Path.Combine(root, "generated", "functions");
     var output = OptionValue(argsTail, "--out") ?? Path.Combine(root, "generated", "build_shards");
-    var nativeSources = OptionValue(argsTail, "--native-source-dir") ?? Path.Combine(root, "runtime", "src");
+    var nativeSources = OptionValue(argsTail, "--native-source-dir")
+        ?? project?.Runtime.NativeRegistrationRoot
+        ?? Path.Combine(root, "runtime", "src");
     var resolvedProfile = OptionValue(argsTail, "--resolved-profile");
     var retroCpp = OptionValue(argsTail, "--retro-cpp-dir");
 
     try
     {
         var nativeSourcePath = Path.GetFullPath(nativeSources);
-        // Without a project the hooks stay on: the option only exists in a manifest.
+        // Without a project the hooks stay on: the options only exist in a manifest.
         var nativeHooks = project?.Runtime.NativeHooks ?? true;
-        var nativeIndex = nativeHooks
-            ? RuntimeNativeIndexBuilder.Build(nativeSourcePath)
-            : new RuntimeNativeIndex([], [], []);
+        var nativeIndex = RuntimeNativeIndexBuilder.Build(nativeSourcePath);
         var result = TranslatedBuildShardEmitter.Emit(new TranslatedBuildShardOptions(
             Path.GetFullPath(baseMetadata),
             Path.GetFullPath(baseFunctions),
@@ -243,7 +241,8 @@ int RunEmitBuildShards(string[] argsTail)
             string.IsNullOrWhiteSpace(resolvedProfile) ? null : Path.GetFullPath(resolvedProfile),
             string.IsNullOrWhiteSpace(retroCpp) ? null : Path.GetFullPath(retroCpp),
             NativeIndex: nativeIndex,
-            NativeHooks: nativeHooks));
+            NativeHooks: nativeHooks,
+            HookProfile: project?.Runtime.HookProfile));
         Console.WriteLine("[translator] emitted stable translated build graph");
         Console.WriteLine($"  base functions: {result.BaseFunctionCount:N0}");
         Console.WriteLine($"  shared base functions: {result.SharedBaseFunctionCount:N0}");
