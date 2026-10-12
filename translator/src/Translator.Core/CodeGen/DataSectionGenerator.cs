@@ -26,6 +26,27 @@ public static class DataSectionGenerator
         string relName = "rel_module",
         string? blobReferenceDirectory = null)
     {
+        Generate(
+            dol,
+            rel is null
+                ? Array.Empty<(RelImage Image, string Name)>()
+                : new (RelImage Image, string Name)[] { (rel, relName) },
+            outputPath,
+            projectName,
+            blobReferenceDirectory);
+    }
+
+    /// <summary>
+    /// Same as the single-REL overload, for several pre-linked REL modules; each gets its own blob,
+    /// named after its entry in <paramref name="rels"/>.
+    /// </summary>
+    public static void Generate(
+        DolFile dol,
+        IReadOnlyList<(RelImage Image, string Name)> rels,
+        string outputPath,
+        string projectName = "PowerPC DOL",
+        string? blobReferenceDirectory = null)
+    {
         var sections = new List<DataSectionEntry>();
         
         // Add DOL data sections (skip .bss - it's zero-initialized)
@@ -45,8 +66,13 @@ public static class DataSectionGenerator
         }
         
         // Add REL data if provided
-        if (rel != null && rel.Data.Length > 0)
+        foreach (var (rel, relName) in rels)
         {
+            if (rel.Data.Length == 0)
+            {
+                continue;
+            }
+
             sections.Add(new DataSectionEntry(
                 Name: SanitizeName(relName),
                 Address: rel.BaseAddress,
