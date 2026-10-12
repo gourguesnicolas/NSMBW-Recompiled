@@ -10,7 +10,9 @@ body:
       options:
         - label: I searched the existing issues and nobody has suggested this yet.
           required: true
-        - label: This is about WiiCompiled itself, not WheelWizard or Retro Rewind content.
+        - label: I read docs/nsmbw/roadmap.md and this is not already a planned milestone.
+          required: true
+        - label: This is about the port itself, not about changing the game's levels, rules or content.
           required: true
   - type: textarea
     id: idea

@@ -1,5 +1,5 @@
 name: In-game bug report
-description: Something looks, sounds, or behaves wrong (graphics, audio, input, online) - but the game doesn't crash.
+description: Something looks, sounds, or behaves wrong (graphics, audio, input, saves) - but the game doesn't crash.
 title: "[Bug] "
 labels: ["bug"]
 body:
@@ -7,29 +7,29 @@ body:
     attributes:
       value: |
         **Where to find your logs** (paste the path into the File Explorer address bar):
-        - Playing through **WheelWizard** (most people): `%APPDATA%\CT-MKWII\Recomp\UserData\Logs`
-        - Installed with the standalone setup exe: `%LOCALAPPDATA%\WiiCompiled\Logs`
+        - `%LOCALAPPDATA%\WiiCompiled\Logs` (the runtime still uses this folder name)
+        - A portable build keeps them in the `UserData\Logs` folder next to it.
 
         Every run gets its own folder. Open the **newest** one and attach `console.log`.
 
-        For visual bugs, a screenshot or short clip helps enormously.
+        For visual bugs, a screenshot or short clip helps enormously. Do not attach game files or disc images.
   - type: checkboxes
     id: preflight
     attributes:
       label: Before you continue
       options:
-        - label: I'm on the latest release of WiiCompiled.
+        - label: I'm on the latest commit of `main` (or the latest release, once there is one).
           required: true
         - label: I searched the existing issues and nobody has reported this yet.
           required: true
-        - label: The problem does NOT also happen on Dolphin or a real Wii (if it does, it's a game/mod issue, not a WiiCompiled issue).
+        - label: The problem does NOT also happen on Dolphin or a real Wii (if it does, it is in the game, not in this port). If this port differs from Dolphin, use the "Divergence" template instead.
           required: true
   - type: input
     id: version
     attributes:
-      label: WiiCompiled version
-      description: It's the very first line of `console.log` (see the log locations above) - it starts with `[runtime] WiiCompiled v…`.
-      placeholder: "e.g. v0.2.12"
+      label: Version or commit
+      description: The first lines of `console.log` start with `[runtime] WiiCompiled` followed by the version. For a build from source, give the commit hash.
+      placeholder: "e.g. v0.1.0, or a1b2c3d"
     validations:
       required: true
   - type: dropdown
@@ -39,7 +39,7 @@ body:
       options:
         - Graphics / visual glitch
         - Audio
-        - Input / controllers
+        - Input / controllers (including tilt and shake)
         - Online / matchmaking
         - Gameplay behaves differently than on Wii/Dolphin
         - Save data / settings
@@ -51,16 +51,16 @@ body:
     attributes:
       label: What happens?
       description: Describe the bug and what you expected instead.
-      placeholder: "e.g. The flag textures near the start line flicker on Coconut Mall…"
+      placeholder: "e.g. The background layers flicker while scrolling in World 2-1…"
     validations:
       required: true
   - type: textarea
     id: doing
     attributes:
       label: What were you doing? / How to reproduce
-      description: Game mode, track, and exact steps if you can reproduce it.
+      description: World and level, number of players, controller, and exact steps if you can reproduce it.
       placeholder: |
-        1. Start a VS race on …
+        1. Start World 1-1 with two players
         2. …
     validations:
       required: true

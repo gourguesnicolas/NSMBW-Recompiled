@@ -1,66 +1,67 @@
-name: Install / update problem
-description: Installing or updating WiiCompiled through WheelWizard fails, or the game won't launch at all after installing.
-title: "[Install] "
+name: Setup / build problem
+description: Preparing the game files, translating, compiling or starting the built game fails.
+title: "[Setup] "
 labels: ["setup"]
 body:
   - type: markdown
     attributes:
       value: |
-        **Where to find the setup log** (same place whether you installed through WheelWizard or the setup exe):
-        - Press `Win+R`, type `%TEMP%` and press Enter, then find `WiiCompiled-setup.log` and attach it below.
+        There is no installer for this port yet. You build it from your own disc image by following
+        `projects/nsmbw-usa/README.md`: extract the files, check their hashes, translate, compile.
 
-        If the install finished but the game won't start, also grab `console.log` from the newest folder in:
-        - WheelWizard: `%APPDATA%\CT-MKWII\Recomp\UserData\Logs`
-        - Standalone setup exe: `%LOCALAPPDATA%\WiiCompiled\Logs`
+        Paste the **full output of the command that failed**, not only the last line.
+
+        If the build finished but the game won't start, also attach `console.log` from the newest folder in
+        `%LOCALAPPDATA%\WiiCompiled\Logs` (the runtime still uses this folder name).
+
+        Do not attach game files, disc images or translator output (see docs/LEGAL.md).
   - type: checkboxes
     id: preflight
     attributes:
       label: Before you continue
       options:
-        - label: I'm on the latest version (latest WheelWizard, or the latest `MarioKartWiiCompiled-Setup.exe` from the Releases page).
+        - label: I'm on the latest commit of `main`.
           required: true
         - label: I searched the existing issues and nobody has reported this yet.
           required: true
-        - label: I have a legally obtained copy of the game and it works in Dolphin.
+        - label: I have my own copy of SMNE01 revision 2 and it runs correctly in Dolphin.
           required: true
   - type: dropdown
     id: stage
     attributes:
       label: Where does it go wrong?
       options:
-        - Starting the install from WheelWizard
-        - Selecting the game file (ISO/WBFS/RVZ rejected)
-        - During compilation / translation
-        - Install finishes but the game won't launch
-        - Updating an existing install
+        - Extracting the files from my disc image
+        - The SHA-256 of a file does not match projects/nsmbw-usa/README.md
+        - Building the translator (dotnet build)
+        - Translation (translate-recursive, generate-data-init, emit-build-shards)
+        - Preparing the toolchain or dependencies
+        - Compiling or linking the runtime
+        - The built game won't start
         - Other
-    validations:
-      required: true
-  - type: dropdown
-    id: installtype
-    attributes:
-      label: How did you install?
-      options:
-        - Through WheelWizard
-        - Downloaded the setup exe myself
-        - Not sure
     validations:
       required: true
   - type: textarea
     id: what
     attributes:
       label: What happens?
-      description: The exact error message (copy the full text or screenshot it) and what you were doing when it appeared.
+      description: The exact error message (copy the full text or screenshot it) and the command you ran.
     validations:
       required: true
   - type: textarea
     id: logs
     attributes:
-      label: Setup log
-      description: Drag & drop `%TEMP%\WiiCompiled-setup.log` here, or paste the tail end of it below.
+      label: Command output
+      description: Paste the full output of the failing command here.
       render: text
     validations:
       required: true
+  - type: input
+    id: image
+    attributes:
+      label: Disc image format
+      description: The format of your dump, and whether the hashes in the README match.
+      placeholder: "e.g. WBFS, scrubbed; main.dol hash matches"
   - type: input
     id: os
     attributes:

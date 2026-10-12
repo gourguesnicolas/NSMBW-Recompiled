@@ -7,8 +7,8 @@ body:
     attributes:
       value: |
         **Where to find your logs** (paste the path into the File Explorer address bar):
-        - Playing through **WheelWizard** (most people): `%APPDATA%\CT-MKWII\Recomp\UserData\Logs`
-        - Installed with the standalone setup exe: `%LOCALAPPDATA%\WiiCompiled\Logs`
+        - `%LOCALAPPDATA%\WiiCompiled\Logs` (the runtime still uses this folder name)
+        - A portable build keeps them in the `UserData\Logs` folder next to it.
 
         Every run gets its own folder. Open the **newest** one and attach `console.log`.
   - type: checkboxes
@@ -16,7 +16,7 @@ body:
     attributes:
       label: Before you continue
       options:
-        - label: I'm on the latest release of WiiCompiled.
+        - label: I'm on the latest commit of `main` (or the latest release, once there is one).
           required: true
         - label: I searched the existing issues and nobody has reported this yet.
           required: true
@@ -25,9 +25,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: WiiCompiled version
-      description: It's the very first line of `console.log` (see the log locations above) - it starts with `[runtime] WiiCompiled v…`.
-      placeholder: "e.g. v0.2.12"
+      label: Version or commit
+      description: The first lines of `console.log` start with `[runtime] WiiCompiled` followed by the version. For a build from source, give the commit hash.
+      placeholder: "e.g. v0.1.0, or a1b2c3d"
     validations:
       required: true
   - type: dropdown
@@ -37,17 +37,18 @@ body:
       options:
         - Constant low FPS everywhere
         - Stutters / hitches (mostly smooth, brief freezes)
-        - Only certain tracks or situations are slow
+        - Only certain levels or situations are slow
         - Got worse after an update
         - Slow only while recording/streaming the game window
+        - Slow only at a high internal resolution or frame rate
     validations:
       required: true
   - type: textarea
     id: doing
     attributes:
       label: When does it happen?
-      description: Which tracks/modes, offline or online, how many players, and roughly what FPS you see.
-      placeholder: "e.g. Drops to ~40 FPS on Rainbow Road with 12 players online, fine offline…"
+      description: Which levels, how many players, the resolution and frame-rate settings, and roughly what FPS you see.
+      placeholder: "e.g. Drops to ~40 FPS in World 4-6 with four players and many enemies on screen, fine with one player…"
     validations:
       required: true
   - type: textarea
