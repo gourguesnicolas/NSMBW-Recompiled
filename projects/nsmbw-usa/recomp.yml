@@ -52,10 +52,13 @@ translation:
   allow_unsupported_instructions: false
 
 runtime:
-  # The runtime's hand-written hooks are keyed by Mario Kart Wii addresses. 13 of them are the start of
-  # an unrelated function here, so none may apply until they are ported (docs/nsmbw/hle-hooks.md, #51).
+  # The runtime's hand-written hooks in runtime/src are keyed by Mario Kart Wii addresses. 13 of them
+  # are the start of an unrelated function here, so none of those may apply.
   native_hooks: false
-  native_registration_root: runtime/src
+  # The hooks written for this game: addresses from docs/nsmbw/hle-hooks.md and docs/nsmbw/os-layout.md.
+  # The translator reads native registrations from this directory only.
+  hook_profile: smne01
+  native_registration_root: runtime/src/hle/profiles/smne01
 
 output:
   root: generated

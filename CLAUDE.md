@@ -48,6 +48,8 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 ## Status and next steps
 
 M0 is done. M1: the translator reaches 40,958 functions in strict mode and the executable compiles and
-links (#13). `runtime.native_hooks: false` keeps the runtime's Mario Kart Wii hooks off; they have to
-be ported to this game's addresses (#51, `docs/nsmbw/hle-hooks.md`) before M2 can boot the game. Also
-open: #14 (inventory of SDK calls against HLE coverage) and #15 (determinism audit).
+links (#13). `runtime.native_hooks: false` keeps the runtime's Mario Kart Wii hooks off. The hooks for
+this game live in `runtime/src/hle/profiles/smne01` (24 so far: threads, mutexes, messages, contexts,
+interrupts, alarms; addresses in `docs/nsmbw/os-layout.md`). They have not run yet (#16). The rest of the
+hooks (#51, `docs/nsmbw/hle-hooks.md`) and the inventory in `docs/nsmbw/sdk-inventory.md` (#14) come next,
+then the determinism audit (#15).

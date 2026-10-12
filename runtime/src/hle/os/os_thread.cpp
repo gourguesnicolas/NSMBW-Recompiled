@@ -73,6 +73,9 @@ int32_t ComputeThreadEffectivePriority(uint32_t threadPtr)
 
 bool IsThpVideoDecoderEntry(uint32_t entryFunc)
 {
+    if (!kHasThpDecoderThreads) {
+        return false;
+    }
     switch (entryFunc) {
     case 0x805529A8u:
     case 0x80552A74u:
@@ -216,7 +219,7 @@ void UnlockAllThreadMutexes(CpuContext* cpu, uint32_t threadPtr)
     }
     CpuContextScope scope(cpu);
     cpu->gpr[3] = threadPtr;
-    InvokeIndirectCpu(0x801A8088u, cpu); // __OSUnlockAllMutex
+    InvokeIndirectCpu(kGuestOsUnlockAllMutex, cpu); // __OSUnlockAllMutex
 }
 
 // Shared tail of OSExitThread/OSCancelThread: clears context, delists if detached, marks
@@ -311,7 +314,7 @@ extern "C" void OSCreateThread_HLE_801a9e84(CpuContext* ctx)
             cpu->gpr[3] = threadPtr;
             cpu->gpr[4] = entryFunc;
             cpu->gpr[5] = alignedStack - 8;
-            InvokeIndirectCpu(0x801A20BCu, cpu); // OSInitContext
+            InvokeIndirectCpu(kGuestOsInitContext, cpu); // OSInitContext
         }
 
         if (IsThpVideoDecoderEntry(entryFunc)) {
@@ -325,7 +328,7 @@ extern "C" void OSCreateThread_HLE_801a9e84(CpuContext* ctx)
 
         }
 
-        ::Memory::Write32(threadPtr + 0x84u, 0x801AA0F0u); // LR = OSExitThread
+        ::Memory::Write32(threadPtr + 0x84u, kGuestOsExitThread); // LR = OSExitThread
         ::Memory::Write32(threadPtr + 0x0Cu, entryArg);    // r3 = argument
 
         // Stack info
@@ -341,9 +344,8 @@ extern "C" void OSCreateThread_HLE_801a9e84(CpuContext* ctx)
         // Match the original OSCreateThread slow-path initialization that runs
         // once scheduler globals are live. THP worker threads depend on these
         // queue/list blocks being fully zeroed.
-        constexpr uint32_t kSchedulerInitFlagAddr = 0x80347130u;
-        constexpr uint32_t kThreadAttrSourceAddr = 0x80385AA8u;
-        if (Memory::Contains(kSchedulerInitFlagAddr, 4) &&
+        // The two addresses come from os_layout.h; zero (not in guest memory) skips the step.
+        if (kSchedulerInitFlagAddr != 0 && Memory::Contains(kSchedulerInitFlagAddr, 4) &&
             ::Memory::Read32(kSchedulerInitFlagAddr) != 0) {
             uint32_t srr1 = ::Memory::Read32(threadPtr + 0x19Cu);
             srr1 |= 0x900u;
@@ -353,7 +355,7 @@ extern "C" void OSCreateThread_HLE_801a9e84(CpuContext* ctx)
             modeFlags = static_cast<uint16_t>(modeFlags | 0x1u);
             ::Memory::Write16(threadPtr + 0x1A2u, modeFlags);
 
-            if (Memory::Contains(kThreadAttrSourceAddr, 4)) {
+            if (kThreadAttrSourceAddr != 0 && Memory::Contains(kThreadAttrSourceAddr, 4)) {
                 const uint32_t attr = (::Memory::Read32(kThreadAttrSourceAddr) & 0xF8u) | 0x4u;
                 ::Memory::Write32(threadPtr + 0x194u, attr);
             }
