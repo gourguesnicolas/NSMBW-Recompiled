@@ -41,7 +41,7 @@ its translator and runtime.
 | --- | --- |
 | [docs/nsmbw/roadmap.md](docs/nsmbw/roadmap.md) | Milestones M0 to M9 and their exit criteria |
 | [docs/nsmbw/architecture.md](docs/nsmbw/architecture.md) | Target architecture and the seven determinism rules |
-| [projects/nsmbw-usa/](projects/nsmbw-usa/) | The project manifest template for the translator |
+| [projects/nsmbw-usa/](projects/nsmbw-usa/) | The translator manifest for the USA release, with every pinned value |
 | [LEGAL.md](docs/LEGAL.md) | What must never enter this repository |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution rules (inherited from WiiCompiled) |
 | [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md) | The original WiiCompiled README: build instructions, FAQ, credits |

@@ -1,0 +1,17 @@
+# Function starts for SMNE01 revision 2: addresses and names only, no game data.
+# Format: <hex address> <name>. Read from the DOL header and from each module's header as loaded
+# by the game (prolog = section 1 + 0x0, epilog = + 0x30, unresolved = + 0x60).
+80004050 __start
+800041C0 __init_registers
+807685E0 d_profileNP__prolog
+80768610 d_profileNP__epilog
+80768640 d_profileNP__unresolved
+8076D7B0 d_basesNP__prolog
+8076D7E0 d_basesNP__epilog
+8076D810 d_basesNP__unresolved
+809A2DD0 d_enemiesNP__prolog
+809A2E00 d_enemiesNP__epilog
+809A2E30 d_enemiesNP__unresolved
+80B1CA50 d_en_bossNP__prolog
+80B1CA80 d_en_bossNP__epilog
+80B1CAB0 d_en_bossNP__unresolved

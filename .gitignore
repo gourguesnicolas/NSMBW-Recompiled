@@ -91,7 +91,6 @@ output.txt
 *.tpl
 /Dumps/
 /dumps/
-/projects/nsmbw-usa/recomp.yml
 
 # Python
 __pycache__/

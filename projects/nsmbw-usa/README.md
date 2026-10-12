@@ -2,9 +2,8 @@
 
 Translator manifest for the North American release (`SMNE01`), **revision 2**.
 
-`recomp.template.yml` is a template, not a working manifest yet: the REL load addresses are still
-unknown and the manifest schema does not accept several REL modules (see below). Copy it to
-`recomp.yml` once those are settled.
+`recomp.yml` is the translator manifest. Every value in it is pinned below. `MAP.txt` seeds the
+function starts the call-graph walk cannot reach on its own (the modules' entry points).
 
 Nothing in this folder may contain game data. Addresses, sizes and hashes are fine; bytes of the
 game are not. See [LEGAL.md](../../docs/LEGAL.md).
@@ -86,8 +85,7 @@ Still worth confirming once: that these addresses are the same after a reset and
 ## Still to determine
 
 1. ~~REL load addresses~~: done, see the table above.
-2. **Multi-REL support** in the manifest schema and the CLI. The translator core can link several
-   modules (#40); the manifest schema and the BSS placement above are still to wire in (#10).
+2. ~~Multi-REL support~~: done in #40 and #43.
 3. **Guest memory size.** MEM1 is 24 MiB (`0x01800000`); confirm whether anything outside it must
    be mapped.
 4. **Function map.** Community symbols target PAL v1 and must be ported to these addresses.

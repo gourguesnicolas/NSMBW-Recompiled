@@ -1,0 +1,64 @@
+# New Super Mario Bros. Wii, North American release (SMNE01), revision 2.
+# Every value comes from the owner's dump and from the game's module list in Dolphin; see README.md.
+schema_version: 1
+workspace_root: ../..
+
+project:
+  id: nsmbw-smne01
+  display_name: NSMBW USA
+  game_id: SMNE01
+  region: E
+
+memory:
+  base: 0x80000000
+  size: 0x01800000      # MEM1 (24 MiB); the DOL and all four modules end at 0x80B8E35C
+  sda_base: 0x8042F680  # _SDA_BASE_  (r13), set in __init_registers at 0x800041C0
+  sda2_base: 0x80433080 # _SDA2_BASE_ (r2),  set in __init_registers at 0x800041C0
+
+inputs:
+  dol:
+    path: Assets/main.dol
+    sha256: 0373b4dbffd7c9da9d27eb7257a7677877a3e33ceb81818bab1daa93560b9907
+
+  # The four modules import from each other and are relocated together. BSS is given explicitly
+  # because the game's loader (OSLinkFixed) puts it at load + fixSize, not after the whole file.
+  rels:
+    - path: Assets/d_profileNP.rel   # module 1
+      load_address: 0x80768500
+      bss_address: 0x8076D4A0
+      sha256: d6b738eb779d0b0b48f0b6d350e8955d51cbbdf0fb46ffdb621d9538c8fd67c7
+    - path: Assets/d_basesNP.rel     # module 2
+      load_address: 0x8076D6C0
+      bss_address: 0x80990840
+      sha256: 7f0fb0d0f91e4e82e3d01b9aee3546182fce7acfcd142e3f900dea9a5472f128
+    - path: Assets/d_enemiesNP.rel   # module 3
+      load_address: 0x809A2CE0
+      bss_address: 0x80B11460
+      sha256: 0f3af075bb64e86abfbcdb31def285f67557814656afde8aefa1dc3016e23f87
+    - path: Assets/d_en_bossNP.rel   # module 4
+      load_address: 0x80B1C960
+      bss_address: 0x80B89AE0
+      sha256: 8c5d5649d45b461061cd6e633909b9bd8bb9b0380f45745de0cf81cf2c5ca277
+
+translation:
+  entry_points:
+    - 0x80004050
+  # Seeds the modules' entry points, which the call-graph walk from __start cannot reach (the
+  # game calls them through pointers read from the module headers).
+  function_map:
+    path: projects/nsmbw-usa/MAP.txt
+  # M1 only: lets the first runs list every unsupported instruction instead of stopping at the
+  # first one. Must be false before anything ships (#9).
+  allow_unsupported_instructions: true
+
+runtime:
+  native_registration_root: runtime/src
+  native_abi_directories:
+    - runtime/src/hle/gx
+
+output:
+  root: generated
+  functions: functions
+  runtime_config: RuntimeConfig.h
+  data_initializer: data_sections_init.cpp
+  base_manifest: ../build/base/nsmbw_base_manifest.json
