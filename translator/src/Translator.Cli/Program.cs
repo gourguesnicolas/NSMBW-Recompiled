@@ -741,6 +741,13 @@ int RunTranslateRecursive(string[] argsTail)
 
             foreach (var target in discoveryTargets)
             {
+                // `bla` to a fixed low address (the SDK's debugger jump at 0x60) is not code in
+                // the image; there is nothing to translate there.
+                if (!image.Value.Contains(target, sizeof(uint)))
+                {
+                    continue;
+                }
+
                 knownBaseFunctionEntryPoints.Add(target);
                 if (visited.Add(target))
                 {
