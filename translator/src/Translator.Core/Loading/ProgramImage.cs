@@ -11,7 +11,8 @@ public sealed class ProgramImage
         AddressRange dolRange,
         AddressRange relRange,
         string sha256,
-        uint memoryBase = MemoryLayout.RamBase)
+        uint memoryBase = MemoryLayout.RamBase,
+        IReadOnlyList<AddressRange>? relRanges = null)
     {
         Memory = memory;
         UsedRange = usedRange;
@@ -19,6 +20,7 @@ public sealed class ProgramImage
         RelRange = relRange;
         Sha256 = sha256;
         MemoryBase = memoryBase;
+        RelRanges = relRanges ?? (relRange.End > relRange.Start ? new[] { relRange } : Array.Empty<AddressRange>());
     }
 
     public byte[] Memory { get; }
@@ -26,7 +28,15 @@ public sealed class ProgramImage
     public uint MemoryEnd => checked(MemoryBase + (uint)Memory.Length);
     public AddressRange UsedRange { get; }
     public AddressRange DolRange { get; }
+    /// <summary>
+    /// Span covering every loaded REL module, from the lowest start to the highest end. With several
+    /// modules it can include gaps between them; use <see cref="RelRanges"/> for exact extents.
+    /// </summary>
     public AddressRange RelRange { get; }
+
+    /// <summary>Exact range of each loaded REL module, in load order.</summary>
+    public IReadOnlyList<AddressRange> RelRanges { get; }
+
     public bool HasRel => RelRange.End > RelRange.Start;
     public string Sha256 { get; }
 

@@ -14,11 +14,13 @@ public sealed class RelFile
     private readonly byte[] _raw;
 
     private RelFile(byte[] raw,
+        uint moduleId,
         IReadOnlyList<RelSection> sections,
         IReadOnlyList<RelImportEntry> imports,
         uint totalSize)
     {
         _raw = raw;
+        ModuleId = moduleId;
         Sections = sections;
         _imports = imports;
         _totalSize = totalSize;
@@ -27,14 +29,27 @@ public sealed class RelFile
     private readonly IReadOnlyList<RelImportEntry> _imports;
     private readonly uint _totalSize;
 
-    /// <summary>The only REL header surface any caller outside this file reads.</summary>
+    /// <summary>Module id from the REL header (offset 0x00). Id 0 is reserved for the main DOL.</summary>
+    public uint ModuleId { get; }
+
     public IReadOnlyList<RelSection> Sections { get; }
 
-    public static RelFile Load(string path)
+    /// <summary>Size of the flat image <see cref="BuildImage"/> produces, BSS included.</summary>
+    public uint TotalSize => _totalSize;
+
+    /// <summary>Module ids this REL relocates against, in import-table order (0 is the main DOL).</summary>
+    public IReadOnlyList<uint> ImportedModuleIds => _imports.Select(i => i.ModuleId).ToArray();
+
+    public static RelFile Load(string path) => FromBytes(File.ReadAllBytes(path));
+
+    public static RelFile FromBytes(byte[] raw)
     {
-        var raw = File.ReadAllBytes(path);
+        ArgumentNullException.ThrowIfNull(raw);
         using var stream = new MemoryStream(raw, writable: false);
         using var reader = new BigEndianBinaryReader(stream, leaveOpen: true);
+
+        reader.Seek(0x00, SeekOrigin.Begin);
+        var moduleId = reader.ReadUInt32();
 
         reader.Seek(0x0C, SeekOrigin.Begin);
         var sectionCount = reader.ReadUInt32();
@@ -84,6 +99,7 @@ public sealed class RelFile
 
         return new RelFile(
             raw,
+            moduleId,
             new ReadOnlyCollection<RelSection>(adjustedSections),
             new ReadOnlyCollection<RelImportEntry>(imports),
             totalSize);
@@ -187,16 +203,60 @@ public sealed class RelFile
 
         if (applyRelocations)
         {
-            ApplyRelocations(buffer, baseAddress, dolBaseAddress);
+            ApplyRelocations(buffer, baseAddress, dolBaseAddress, linkedModules: null);
         }
 
-        return new RelImage(buffer, baseAddress);
+        return new RelImage(buffer, baseAddress, ModuleId);
     }
-    
-    private void ApplyRelocations(byte[] memory, uint baseAddress, uint dolBaseAddress)
+
+    /// <summary>
+    /// Builds this module's image with imports from other REL modules resolved against
+    /// <paramref name="linkedModules"/> (keyed by module id). Use <see cref="RelLinker"/> rather than
+    /// calling this directly: it validates the whole module set first.
+    /// </summary>
+    internal RelImage BuildLinkedImage(
+        uint baseAddress,
+        IReadOnlyDictionary<uint, RelModulePlacement> linkedModules,
+        uint dolBaseAddress)
+    {
+        var buffer = new byte[checked((int)_totalSize)];
+        Buffer.BlockCopy(_raw, 0, buffer, 0, _raw.Length);
+        ApplyRelocations(buffer, baseAddress, dolBaseAddress, linkedModules);
+        return new RelImage(buffer, baseAddress, ModuleId);
+    }
+
+    private (IReadOnlyList<RelSection> Sections, uint BaseAddress) ResolveImportedModule(
+        uint importedModuleId,
+        uint ownBaseAddress,
+        IReadOnlyDictionary<uint, RelModulePlacement>? linkedModules)
+    {
+        // Without a linked module set (the single-REL path), every non-DOL import resolves against
+        // this module, exactly as before multi-module support existed.
+        if (linkedModules is null || importedModuleId == ModuleId)
+        {
+            return (Sections, ownBaseAddress);
+        }
+
+        if (!linkedModules.TryGetValue(importedModuleId, out var placement))
+        {
+            throw new InvalidDataException(
+                $"REL module {ModuleId} imports module {importedModuleId}, which is not part of the linked module set");
+        }
+
+        return (placement.File.Sections, placement.BaseAddress);
+    }
+
+    private void ApplyRelocations(
+        byte[] memory,
+        uint baseAddress,
+        uint dolBaseAddress,
+        IReadOnlyDictionary<uint, RelModulePlacement>? linkedModules)
     {
         foreach (var import in _imports)
         {
+            var (targetSections, targetBaseAddress) = import.ModuleId == 0
+                ? (Sections, baseAddress)
+                : ResolveImportedModule(import.ModuleId, baseAddress, linkedModules);
             uint currentOffset = 0;
             byte currentSection = 0;
             var cursor = import.RelocationOffset;
@@ -241,13 +301,14 @@ public sealed class RelFile
                 }
                 else
                 {
-                    if (symbolSection >= Sections.Count)
+                    if (symbolSection >= targetSections.Count)
                     {
-                        throw new InvalidDataException($"Relocation referenced unknown symbol section {symbolSection}");
+                        throw new InvalidDataException(
+                            $"Relocation referenced unknown symbol section {symbolSection} of module {import.ModuleId}");
                     }
 
-                    var symbol = Sections[symbolSection];
-                    target = baseAddress + symbol.FileOffset + addend;
+                    var symbol = targetSections[symbolSection];
+                    target = targetBaseAddress + symbol.FileOffset + addend;
                 }
 
                 var memIndex = checked((int)(dst - baseAddress));
