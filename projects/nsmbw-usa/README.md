@@ -134,15 +134,19 @@ method; the script lists how many candidates remain untranslated.
 
 `scripts/port_symbols.py` ports the community's PAL v1 symbols to this revision. It reads two public
 files from the NSMBW-Community organisation (`NSMBW-Maps/address-map.txt` and `NSMBW-Decomp/syms.txt`)
-and composes the address map P1 -> E1 -> E2. Of 1,045 symbols, 1,044 map; 694 name a function start
-already in `MAP.txt` and 350 add new ones. Only names and addresses are kept; the two source files
-are fetched, not stored here, because neither repository declares a licence (see issue #6).
+and composes the address map P1 -> E1 -> E2. Of 1,045 symbols, 1,044 map; 694 land on a function
+start already in `MAP.txt` and 350 are new starts.
+
+**The committed `MAP.txt` holds addresses only.** The community's names are their work and neither
+repository declares a licence (see issue #6), so they are not stored here. For readable crash reports
+and for working on the code, write a named copy on your own machine:
 
 ```sh
 python3 scripts/port_symbols.py --fetch <dir>
-python3 scripts/port_symbols.py <dir> projects/nsmbw-usa/MAP.txt
+python3 scripts/port_symbols.py <dir> projects/nsmbw-usa/MAP.txt                       # addresses
+python3 scripts/port_symbols.py <dir> projects/nsmbw-usa/MAP.txt --with-names named.txt  # local only
 ```
 
-Those symbols are mostly game code (`d*`, `da*`, `m*`). Only a handful are SDK functions
+Those symbols are mostly game code (`d*`, `da*`, `m*`). Only about 20 are SDK functions
 (`OSCreateThread`, `OSResumeThread`, `OSSuspendThread`, `VIWaitForRetrace`, ...), so most of the 55
-runtime HLE hooks still have to be located in this DOL by other means.
+runtime HLE hooks (issue #51) have to be located in this DOL by other means.

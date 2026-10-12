@@ -10,11 +10,14 @@ The map for a version is written relative to the version it extends, so the offs
 P1 -> E1 -> E2 for SMNE01 revision 2.
 
 Usage:
-  port_symbols.py --fetch DIR            download both files into DIR
-  port_symbols.py DIR MAP.txt
+  port_symbols.py --fetch DIR                       download both files into DIR
+  port_symbols.py DIR MAP.txt                       add the ported addresses (committed form)
+  port_symbols.py DIR MAP.txt --with-names OUT.txt  also write the names, to OUT.txt (local use)
 
-MAP.txt is rewritten in place: a ported name replaces a `sub_` placeholder, a ported address that is
-not yet in the map is added, and names already in the map are kept.
+The committed MAP.txt keeps addresses only (`sub_XXXXXXXX`): the community's names are their work and
+neither repository declares a licence. A ported address not yet in MAP.txt is added; names already
+in MAP.txt (written by hand) are kept. --with-names leaves MAP.txt untouched and writes a second map
+carrying the community names, for readable crash reports on your own machine. Do not commit it.
 """
 import re
 import sys
@@ -93,29 +96,40 @@ def main():
     if len(args) < 2:
         sys.exit(__doc__)
     directory, map_path = Path(args[0]), Path(args[1])
+    names_out = Path(args[args.index("--with-names") + 1]) if "--with-names" in args else None
     versions = parse_address_map(directory / "address-map.txt")
     symbols = parse_symbols(directory / "syms.txt")
     header, entries = read_map(map_path)
 
+    ported = dict(entries)
     named = added = unmapped = 0
     for p1_address, name in symbols.items():
         address = port(versions, p1_address)
         if address is None:
             unmapped += 1
             continue
-        current = entries.get(address)
-        if current is None:
+        if address not in entries:
+            entries[address] = f"sub_{address:08X}"
             added += 1
-        elif current.startswith("sub_"):
-            named += 1
-        else:
-            continue
-        entries[address] = clean(name)
+        current = ported.get(address)
+        if current is None or current.startswith("sub_"):
+            ported[address] = clean(name)
+            named += current is not None
 
-    lines = header + [f"{a:08X} {n}" for a, n in sorted(entries.items())]
-    map_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"{len(symbols)} symbols: {named} named existing starts, {added} new starts, "
-          f"{unmapped} unmapped; map now has {len(entries)} entries")
+    def write(path, table):
+        lines = header + [f"{a:08X} {n}" for a, n in sorted(table.items())]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    if names_out:
+        # Community names on top of every start in the committed map.
+        for address, name in entries.items():
+            ported.setdefault(address, name)
+        write(names_out, ported)
+        print(f"wrote {len(ported)} named entries to {names_out} (do not commit)")
+    else:
+        write(map_path, entries)
+    print(f"{len(symbols)} symbols: {added} new starts, {unmapped} unmapped; "
+          f"map has {len(entries)} entries")
 
 
 if __name__ == "__main__":
