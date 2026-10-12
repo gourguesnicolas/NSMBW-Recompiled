@@ -16,6 +16,7 @@ game are not. See [LEGAL.md](../../docs/LEGAL.md).
 | Game ID | `SMNE01` |
 | Disc revision | 2 (disc header version byte `0x02`) |
 | Source of the reference dump | WBFS image (scrubbed). It cannot be matched against Redump, which hashes full images |
+| Dolphin integrity check | No errors in any block used by game files. Errors only in 123,915 unused (scrubbed) blocks, plus the missing update partition and the WBFS size field: all expected for a scrubbed WBFS |
 
 ## Translator inputs
 
@@ -68,9 +69,11 @@ Module 0 is `main.dol`. The modules reference each other, so they must be reloca
 3. **Guest memory size.** MEM1 is 24 MiB (`0x01800000`); confirm whether anything outside it must
    be mapped.
 4. **Function map.** Community symbols target PAL v1 and must be ported to these addresses.
-5. **Hash-tree check of the reference dump.** `nodtool extract --validate` reported an invalid H0
-   hash in one effect file. The translator inputs above extracted without errors, but the image
-   should be verified with Dolphin (Properties > Verify) before the hashes are treated as final.
+5. **Matching a full dump.** Dolphin's integrity check found the file data intact, so the hashes
+   above are treated as final. (`nodtool extract --validate` had reported an invalid H0 hash in one
+   effect file; Dolphin found no error in any used block, so this looks like a tool quirk on scrubbed
+   WBFS images.) A full, unscrubbed dump would also match Redump, but is not required: the manifest
+   pins `main.dol` and the modules, not the disc image.
 
 ## Reproducing the inputs from your own dump
 
