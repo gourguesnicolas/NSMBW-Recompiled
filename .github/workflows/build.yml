@@ -82,12 +82,25 @@ jobs:
         shell: bash
         run: bash Launcher/macos/test-publish-app.command
 
+      # FetchContent downloads mbedtls from a GitHub release; those downloads sometimes answer 5xx.
+      # Cache the fetched sources and retry the configure step so a transient error does not fail CI.
+      - name: Cache fetched dependencies
+        uses: actions/cache@v5
+        with:
+          path: build-macos/_deps
+          key: macos-deps-${{ hashFiles('runtime/CMakeLists.txt', 'runtime/cmake/**') }}
+
       - name: Configure native runtime
         shell: bash
         run: |
           test "$(uname -m)" = arm64
-          cmake -S runtime -B build-macos -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release -DMKW_BUILD_PRODUCTS=OFF
+          for attempt in 1 2 3; do
+            cmake -S runtime -B build-macos -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release -DMKW_BUILD_PRODUCTS=OFF && break
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            echo "Configure failed (attempt $attempt), retrying in 15 s"
+            sleep 15
+          done
           grep -qx 'CMAKE_OSX_DEPLOYMENT_TARGET:STRING=12.0' \
             build-macos/CMakeCache.txt
 
