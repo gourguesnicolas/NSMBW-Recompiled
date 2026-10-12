@@ -1,5 +1,5 @@
-# TEMPLATE - not a working manifest. Fill in every TODO from your own dump, then copy this file to
-# recomp.yml. Do not guess values and do not copy them from another region or revision.
+# TEMPLATE - not a working manifest yet. Values below were read from a SMNE01 revision 2 dump
+# (see README.md). The remaining TODOs need a run-time observation or a translator change.
 schema_version: 1
 workspace_root: ../..
 
@@ -11,25 +11,35 @@ project:
 
 memory:
   base: 0x80000000
-  # size:      TODO  guest address space needed by this game (MEM1 is 0x01800000)
-  # sda_base:  TODO  _SDA_BASE_  (r13), from __init_registers
-  # sda2_base: TODO  _SDA2_BASE_ (r2),  from __init_registers
+  size: 0x01800000      # MEM1 (24 MiB). TODO: confirm nothing outside MEM1 must be mapped
+  sda_base: 0x8042F680  # _SDA_BASE_  (r13), set in __init_registers at 0x800041C0
+  sda2_base: 0x80433080 # _SDA2_BASE_ (r2),  set in __init_registers at 0x800041C0
 
 inputs:
   dol:
     path: Assets/main.dol
-    # sha256: TODO  SHA-256 of main.dol from your disc revision
+    sha256: 0373b4dbffd7c9da9d27eb7257a7677877a3e33ceb81818bab1daa93560b9907
 
-  # The schema currently accepts ONE rel. This game has four, shipped as .rel.LZ and
-  # decompressed before translation. Multi-REL support is an M1 task.
-  # rel:
-  #   path: Assets/TODO.rel
-  #   load_address: TODO
-  #   sha256: TODO
+  # The schema currently accepts ONE rel. This game has four modules that import from each other,
+  # so they must be translated together. Multi-REL support is an M1 task. Load addresses are
+  # decided at run time by the game's heap and are still TODO.
+  # rels:
+  #   - path: Assets/d_profileNP.rel   # module 1
+  #     load_address: TODO
+  #     sha256: d6b738eb779d0b0b48f0b6d350e8955d51cbbdf0fb46ffdb621d9538c8fd67c7
+  #   - path: Assets/d_basesNP.rel     # module 2
+  #     load_address: TODO
+  #     sha256: 7f0fb0d0f91e4e82e3d01b9aee3546182fce7acfcd142e3f900dea9a5472f128
+  #   - path: Assets/d_enemiesNP.rel   # module 3
+  #     load_address: TODO
+  #     sha256: 0f3af075bb64e86abfbcdb31def285f67557814656afde8aefa1dc3016e23f87
+  #   - path: Assets/d_en_bossNP.rel   # module 4
+  #     load_address: TODO
+  #     sha256: 8c5d5649d45b461061cd6e633909b9bd8bb9b0380f45745de0cf81cf2c5ca277
 
 translation:
-  # entry_points:
-  #   - TODO
+  entry_points:
+    - 0x80004050
   # function_map:
   #   path: projects/nsmbw-usa/MAP.txt
   allow_unsupported_instructions: false

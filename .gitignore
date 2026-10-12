@@ -92,3 +92,7 @@ output.txt
 /Dumps/
 /dumps/
 /projects/nsmbw-usa/recomp.yml
+
+# Python
+__pycache__/
+*.pyc
