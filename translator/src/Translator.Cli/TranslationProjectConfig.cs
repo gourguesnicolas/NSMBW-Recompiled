@@ -109,7 +109,8 @@ internal sealed class TranslationProjectConfig
         var runtime = new ProjectRuntime(
             abiDirectories,
             ResolvePath(workspaceRoot, dto.Runtime?.NativeRegistrationRoot ?? "runtime/src"),
-            dto.Runtime?.NativeHooks ?? true);
+            dto.Runtime?.NativeHooks ?? true,
+            dto.Runtime?.HookProfile);
         var outputRoot = ResolvePath(workspaceRoot, dto.Output?.Root ?? "generated");
         var output = new ProjectOutput(
             outputRoot,
@@ -440,6 +441,7 @@ internal sealed class TranslationProjectConfig
         public List<string>? NativeAbiDirectories { get; init; }
         public string? NativeRegistrationRoot { get; init; }
         public bool? NativeHooks { get; init; }
+        public string? HookProfile { get; init; }
     }
 
     private sealed class OutputDto
@@ -504,13 +506,20 @@ internal sealed record ProjectTranslation(
     string? FunctionMapPath,
     bool AllowUnsupportedInstructions);
 /// <param name="NativeHooks">
-/// False when the runtime's hand-written native hooks do not apply to this game: the native index is
-/// then empty, so the translator translates every address, and the runtime build disables the hooks.
+/// False when the runtime's hand-written native hooks, keyed by Mario Kart Wii addresses, do not apply
+/// to this game: the runtime build then registers none of them. The hooks the project does want are
+/// registered by sources under <paramref name="NativeRegistrationRoot"/>, which is the only place the
+/// translator reads them from.
+/// </param>
+/// <param name="HookProfile">
+/// Names a set of runtime sources and constants written for this game (for example the OS data
+/// addresses). The runtime build defines MKW_HOOK_PROFILE_&lt;NAME&gt; when it is set.
 /// </param>
 internal sealed record ProjectRuntime(
     IReadOnlyList<string> NativeAbiDirectories,
     string NativeRegistrationRoot,
-    bool NativeHooks = true);
+    bool NativeHooks = true,
+    string? HookProfile = null);
 internal sealed record ProjectOutput(
     string Root,
     string Functions,
