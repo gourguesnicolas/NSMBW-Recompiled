@@ -1,4 +1,5 @@
-﻿#include "hle_stubs.h"
+﻿#include "../os/os_layout.h"
+#include "hle_stubs.h"
 #include "isa/big_endian.h"
 #include "hle/dvd_contract.h"
 #include "hle/runtime_parse_helpers.h"
@@ -749,7 +750,7 @@ extern "C" const char* DVDResolveHostPathForTest(const char* dvdPath)
 
 static void InitDvdWaitingQueues()
 {
-    constexpr uint32_t kQueueBase = 0x80343230;
+    constexpr uint32_t kQueueBase = OsHleInternal::kDvdWaitingQueueBase;
     for (uint32_t i = 0; i < 4; ++i) {
         const uint32_t queue = kQueueBase + (i * 8);
         Memory::Write32(queue + 0, queue);
@@ -763,12 +764,17 @@ static void CompleteDvdCancelState()
 
     // These are the SDK DVD globals used by DVDCancelAll/__DVDPrepareReset.
     // The actual drive work is HLE'd, so complete pending cancel/reset waits.
-    Memory::Write32(0x80386664, 0); // Canceling
-    Memory::Write32(0x80386668, 0); // ResumeFromHere
-    Memory::Write32(0x80386670, 0); // PausingFlag
-    Memory::Write32(0x8038667C, 1); // CancelAllSync complete
-    Memory::Write32(0x803866A8, 1); // PrepareReset complete
-    Memory::Write32(0x803866F0, 0); // executing command block
+    const auto set = [](uint32_t address, uint32_t value) {
+        if (address != 0) {
+            Memory::Write32(address, value);
+        }
+    };
+    set(OsHleInternal::kDvdCancelingAddr, 0);
+    set(OsHleInternal::kDvdResumeFromHereAddr, 0);
+    set(OsHleInternal::kDvdPausingFlagAddr, 0);
+    set(OsHleInternal::kDvdCancelAllSyncAddr, 1);   // complete
+    set(OsHleInternal::kDvdPrepareResetAddr, 1);    // complete
+    set(OsHleInternal::kDvdExecutingAddr, 0);       // no command block
 }
 
 // 0x8015EA1C -> DVDInit
@@ -785,14 +791,18 @@ extern "C" void DVDInit_8015EA1C()
 
     // 1. Initialize Global Flags (Emulate OS state)
     // These addresses are standard OS globals for DVD context
-    Memory::Write8(0x80386724, 1);   // Contexts initialized
-    Memory::Write8(0x80386725, 1);   // LowInit called
-    Memory::Write32(0x80386720, 0);  // Current context index
-    Memory::Write8(0x803866a0, 1);   // DVDInit called flag
+    Memory::Write8(OsHleInternal::kDvdContextsInitFlagAddr, 1);   // Contexts initialized
+    Memory::Write8(OsHleInternal::kDvdLowInitFlagAddr, 1);        // LowInit called
+    Memory::Write32(OsHleInternal::kDvdContextIndexAddr, 0);      // Current context index
+    if (OsHleInternal::kDvdInitFlagIsWord) {
+        Memory::Write32(OsHleInternal::kDvdInitFlagAddr, 1);      // DVDInit called flag
+    } else {
+        Memory::Write8(OsHleInternal::kDvdInitFlagAddr, 1);
+    }
     CompleteDvdCancelState();
 
     // 2. Initialize DVD Context structures (prevent crashes in callbacks)
-    constexpr uint32_t kContextBase = 0x803434e0;
+    constexpr uint32_t kContextBase = OsHleInternal::kDvdContextBase;
     constexpr uint32_t kMagicValue = 0xFEEBDAED;
     for (int i = 0; i < 4; i++) {
         uint32_t ctx = kContextBase + i * 0x20;
@@ -804,8 +814,8 @@ extern "C" void DVDInit_8015EA1C()
     // This tells the game "Yes, I am Mario Kart Wii"
     uint32_t diskHeader = 0x80000000;
     Memory::Write32(diskHeader + 0x00, CurrentDiscGameCode());
-    Memory::Write16(diskHeader + 0x04, 0x3031);     // '01' (Maker)
-    Memory::Write8(diskHeader + 0x06, 0x01);        // Disk #1
+    // Maker, disc number and revision in one word ('01', disc, version).
+    Memory::Write32(diskHeader + 0x04, OsHleInternal::kBootDiscMakerInfo);
     // 4. Scan Files
     const fs::path& rootPath = GetDvdRoot();
     
@@ -840,7 +850,7 @@ extern "C" void DVDInit_8015EA1C()
     BuildAndPublishRuntimeFst();
 
     // Initialize the translated DVD filesystem so it can use the published FST.
-    constexpr uint32_t kDvdFsInitAddress = 0x8015DF1C;
+    constexpr uint32_t kDvdFsInitAddress = OsHleInternal::kGuestDvdFsInit;
     if (TranslatedFunctionRegistry::FindByAddressPtr(kDvdFsInitAddress)) {
         InvokeIndirectCpu(kDvdFsInitAddress, &GetPersistentCpuContext());
     }
@@ -1033,8 +1043,7 @@ PPC_NATIVE_OVERRIDE(80165A30, DVDLowInquiry_80165A30, int32_t, (uint32_t b, uint
 extern "C" int32_t DVDLowReadDiskID_80164AAC(uint32_t diskIdPtr, uint32_t callback) {
     if (diskIdPtr) {
         Memory::Write32(diskIdPtr + 0x00, CurrentDiscGameCode());
-        Memory::Write16(diskIdPtr + 0x04, 0x3031);
-        Memory::Write8 (diskIdPtr + 0x06, 0x01);
+        Memory::Write32(diskIdPtr + 0x04, OsHleInternal::kBootDiscMakerInfo);
     }
     CompleteDvdCancelState();
     return 1; // Success
