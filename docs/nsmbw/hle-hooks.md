@@ -77,6 +77,39 @@ instruction sequence. Confidence: **high** means the code matches the SDK functi
 | `DVDReadAbsAsyncPrio` (`DVD__ReadAbsAsyncPrio`) | `0x801628CC` | `0x801CECC0` | high | the callee shared by both functions above |
 | `ISFS_OpenLib` | `0x80169BCC` | `0x80226490` | medium | the only function using `/dev/fs`; the body was not read in full |
 
+## Interrupt controller, EXI, SI, STM, IPC and audio start-up (found while running, #16)
+
+These ran as translated code and stopped on a hardware register during `OSInit`. Each is registered in
+`runtime/src/hle/profiles/smne01`.
+
+| SDK function | Mario Kart Wii | SMNE01 rev 2 | Confidence | Evidence |
+| --- | --- | --- | --- | --- |
+| `__OSSetInterruptHandler` | `0x801A65F8` | `0x801B11B0` | high | indexes the table whose address is at `r13 - 20392`, returns the old entry |
+| `__OSInterruptInit` | `0x801A661C` | `0x801B11E0` | high | writes `0xCC003004` and `0xCD000034`, the table at `0x80003040`, the masks at `0x800000C4/C8` |
+| `SetInterruptMask` | `0x801A66E0` | `0x801B12B0` | high | size `0x260` vs `0x25C`; reads and writes the PI and MI mask registers |
+| `__OSMaskInterrupts` | `0x801A693C` | `0x801B1510` | high | size `0x80`; clears bits in `0x800000C4`, loops on `SetInterruptMask` |
+| `__OSUnmaskInterrupts` | `0x801A69BC` | `0x801B1590` | high | same shape, sets bits |
+| `EXIInit` | `0x80168FA0` | `0x801B9BA0` | high | waits on the three EXI control registers, masks EXI interrupts, clears the status registers |
+| `SetExiInterruptMask` | `0x80167E78` | `0x801B8A30` | medium | switch on channel 0, 1, 2 over the control block array at `0x8038F710` |
+| `EXIImm` | `0x80167F68` | `0x801B8B20` | medium | `0xF0` after the previous one in both games |
+| `EXIDma` | `0x80168288` | `0x801B8E50` | medium | follows `EXIImm` and its helper |
+| `EXISync` | `0x80168380` | `0x801B8F50` | medium | polls bit 0 of the control register |
+| `EXISelect` | `0x801689D0` | `0x801B95C0` | medium | three arguments, control block index `channel << 6` |
+| `EXIDeselect` | `0x80168B00` | `0x801B96F0` | high | exactly `0x130` after `EXISelect` in both games |
+| `EXIUnlock` | `0x80169260` | `0x801B9E70` | medium | same prologue as `EXIDeselect`, disables interrupts, tests the lock flag |
+| `SIInit` | `0x801B2DE0` | `0x801BAEF0` | medium | writes `0xCD006434`, called right after `EXIInit` by `OSInit` |
+| `SISetSamplingRate` | `0x801B3ACC` | `0x801BB840` | high | clamps the argument to 11, stores it at `r13 - 20176`, reads the VI DTV status |
+| `__OSInitSTM` | `0x801AB848` | `0x801B6820` | high | state words at `r13 - 20324` (flag), `-20320`, `-20316` |
+| `__OSInitMemoryProtection` | `0x801A7DFC` | `0x801B2D50` | medium | writes the MI protection registers `0xCC004010/4020` |
+| `OSGetResetCode` | `0x801A8A50` | `0x801B3C90` | high | reads `0xCC003024 >> 3` |
+| `IPCCltInit` | `0x80193478` | `0x802247D0` | high | installs handler 27, unmasks `0x10`, writes IPC register 1; calls `IPCInit` at `0x802242A0` |
+| `__AIClockInit` | `0x801A1138` | `0x801ABF60` | medium | exactly `0x220` before `__OSInitAudioSystem` in both games |
+| `__OSInitAudioSystem` | `0x801A1358` | `0x801AC180` | high | boots the DSP: `0xCC005000` registers, copies a 128 byte block to `0x81000000` |
+| `__OSStopAudioSystem` | `0x801A1520` | `0x801AC350` | medium | `0x1C8` after `__OSInitAudioSystem` in both games |
+
+Not hooked, found on the way: `OSReport` is `0x8015F730` (varargs wrapper), the `OSInit` banner and its
+version checks sit at `0x801AA800`.
+
 ## Not found, or no counterpart
 
 - `OS__SleepTicks`: no function calls both `OSSetAlarm` and `OSSleepThread`; probably inlined.

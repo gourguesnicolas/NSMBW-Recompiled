@@ -41,13 +41,32 @@ The three scheduler counters are consecutive words in the same order as in Mario
 
 The thread, mutex, message queue and alarm entry points are in `hle-hooks.md`.
 
+## Boot values (low memory) and more statics
+
+| Value | Address | Meaning |
+| --- | --- | --- |
+| Disc ID | `0x80000000` | `SMNE`, then maker `01`, disc 0, revision 2 (`0x30310002`) |
+| MEM1 arena low | `0x80000030`, `0x8000310C` | `0x80C00000`, above the last REL module (see below) |
+| IOS version | `0x80003140` | IOS 53 revision 5663 (`0x0035161F`); the TMD asks for system version `0x100000035` |
+| Required IOS | `0x80003188` | `0x00350000`: `OSInit` compares the major number and the revision with it, and calls `OSFatal` otherwise |
+| Interrupt handler table pointer | `r13 - 20392` = `0x8042A6D8` | points at `0x80003040` |
+| STM state | `r13 - 20324` = `0x8042A71C` | flag, then the two `/dev/stm` handles |
+| IPC buffer low / high | `r13 - 19164` / `-19160` = `0x8042ABA4` / `0x8042ABA8` | window `IPCCltInit` advances by `0x1000` |
+| EXI control blocks | `0x8038F710` | `0x40` bytes per channel |
+| Arena clear | `0x801AA140`, `0x801AA320` | `OSInit` zeroes `[arena low, arena high)` on a cold boot: with Mario Kart Wii's arena start it wiped the game's own `.sdata`, then `OSReport` jumped through a null pointer |
+
+The runtime places the four REL modules at `0x80768500..0x80B8E000` before the game starts. The game would
+otherwise load them itself into a heap. Until the module loader is handled (M3), the arena starts above
+them so that neither the arena clear nor the game's heaps overwrite them. This costs the game the MEM1
+below `0x80C00000` (about 12 MiB of the 24 MiB), which has to be revisited.
+
 ## Not ported
 
-- **Interrupt handler table pointer** (`kInterruptHandlerTablePtrAddr` is 0): only the interrupt-mask and
-  exception hooks use it, and they are not registered for this profile.
+- **`OSExceptionInit`.** The Mario Kart Wii hook that skips the exception vector set-up was not located;
+  the translated function runs.
 - **Time functions.** `OSGetTime` and `__OSGetSystemTime` run as translated code and read the host clock
   through `mftb`, which breaks determinism rule 3 (#15). The sleep and alarm HLE use their own
   `ReadSystemTime`, so the two clocks can disagree until that is fixed.
 - **Mario Kart Wii tweaks.** The THP decoder thread special case and the "scheduler start-up flag"
   step in `OSCreateThread` are switched off for this profile.
-- **Not run.** None of this has executed: the executable has not been started (#16).
+- **Run only up to the DVD layer.** `OSInit` now completes; the next stop is the DVD request ring (see #16).

@@ -488,13 +488,14 @@ extern "C" int32_t IPCCltInit_80193478(CpuContext* ctx)
 {
     RT_LOG(RT_TAG_OS) << "IPCCltInit_80193478 called: calling IPCInit for buffer setup" << std::endl;
     
-    // Sets 0x803867EC/F0/E8 (IPC buffer lo/hi + init flag) from __OSGetIPCBufferLo/Hi.
-    InvokeIndirectCpu(0x80192F7Cu, ctx);
+    // Sets the IPC buffer lo/hi and the init flag (statics at r13 - kIpcBufferLoOffsetFromR13 and after)
+    // from __OSGetIPCBufferLo/Hi.
+    InvokeIndirectCpu(kGuestIpcInit, ctx);
 
     // Advance the buffer lo pointer by 0x1000 (iosHeap size), matching real IPCCltInit.
-    uint32_t bufferLo = Memory::Read32(ctx->gpr[13] + -25620); // 0x803867EC at r13-0x6414
+    uint32_t bufferLo = Memory::Read32(ctx->gpr[13] - kIpcBufferLoOffsetFromR13);
     uint32_t newBufLo = bufferLo + 0x1000; // Advance by 4KB for iosHeap
-    Memory::Write32(ctx->gpr[13] + -25620, newBufLo);
+    Memory::Write32(ctx->gpr[13] - kIpcBufferLoOffsetFromR13, newBufLo);
     
     RT_LOG(RT_TAG_OS) << "IPCCltInit: IPC buffer lo advanced from 0x" << std::hex << bufferLo
               << " to 0x" << newBufLo << std::dec << std::endl;
