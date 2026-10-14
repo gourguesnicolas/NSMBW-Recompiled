@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-14 (PR #61 merged; DVD hooks in review).
+Last updated: 2026-10-14 (PR #62 merged; VI hooks in review).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 40,958 functions in strict mode; the executable compiles and
@@ -60,10 +60,11 @@ Last updated: 2026-10-14 (PR #61 merged; DVD hooks in review).
   addresses: threads, mutexes, messages, contexts, interrupts and masks, EXI, SI, STM, memory protection,
   reset code, IPC client, audio start-up, alarms (about 55 hooks). Evidence and confidence per address:
   `docs/nsmbw/hle-hooks.md` and `docs/nsmbw/os-layout.md`.
-- **Current stop**: the DVD hooks work (the disc is indexed: 1189 files) and the game reaches its own
-  `main` (`0x800C9F90`). It then reads the VI DTV status (`0xCC00206E`) from `0x801B00F0` because the
-  VI hooks are not ported. Nothing is drawn.
-- **Open PRs**: `port-dvd-ios` (DVD hooks per profile: `DVDInit`, the three reads, `DVDLowInit`).
+- **Current stop**: `main` runs, the drive check passes, `VIInit` runs, and the game reaches
+  `EGG::GraphicsFifo::create` -> `GXInit` (`0x801C1DB0`, `0x801C2E70`). The GX hooks are not ported; the
+  run ends with a host SEH `0xC00000FF`. Nothing is drawn.
+- **Open PRs**: `port-vi` (14 VI hooks, `OSSetProgressiveMode`, `DVDCheckDevice`, VI statics per profile,
+  `MKW_HANG_DUMP_SECONDS` diagnostic).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -76,6 +77,8 @@ Last updated: 2026-10-14 (PR #61 merged; DVD hooks in review).
    `UserData/Config.toml` containing `[paths]` / `dvd_root = "<extracted disc dir>"` (the directory that holds
    `files/` and `sys/fst.bin`). Everything there is git-ignored.
 3. Read `stderr` and `UserData/Logs/<run>/`: a stop prints the guest address (`lr=`, "guest address:").
+   For a run that neither crashes nor ends, set `MKW_HANG_DUMP_SECONDS=20`: the CPU state is printed three
+   times (last call site in `lr`).
    To list MMIO-touching functions still reachable from `__start`, scan `generated/functions` for the
    `0xCC00xxxx`/`0xCD00xxxx` base constants and subtract the hooked addresses.
 
@@ -87,14 +90,12 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **VI hooks** (MKW `runtime/src/hle/vi.cpp`, about 17 hooks, addresses in `hle-hooks.md`): `VIInit`
-   `0x801BC7A0`, `__VIInit` `0x801BC5A0`, `VIConfigure` `0x801BD280`, `VIFlush` `0x801BDCB0`,
-   `VISetNextFrameBuffer` `0x801BDDD0`, `VIWaitForRetrace` `0x801BCCF0`, ... The file keeps MKW statics
-   (`kVi*Addr`, `kEggSSystemAddr`) that must move into the profile layout.
+1. **GX hooks** (MKW `runtime/src/hle/gx`, about 330; `gx_init.cpp` first): the game now needs them
+   immediately (`GXInit`). GX is also inlined into 46 game functions, so the FIFO write path matters.
+   MKW addresses are keyed in `runtime/src/hle/gx/*.cpp`; locate by order and size from `GXInit`.
 2. **IOS hooks** (MKW `runtime/src/hle/ios.cpp`, `nand_isfs.cpp`): `IOS_Open/Close/Read/Write/Seek/Ioctl/
    Ioctlv` and Async forms near `0x80224xxx`-`0x80226xxx`; NAND has MKW `r13` offsets to parametrize.
-3. Audio (AI/DSP/AX hooks, MKW `0x80123F88`-`0x8015D57C` in `runtime/src/hle/audio`), then GX (about 330
-   hooks; GX is also inlined into 46 game functions).
+3. Audio (AI/DSP/AX hooks, MKW `0x80123F88`-`0x8015D57C` in `runtime/src/hle/audio`).
 4. Module loading: the runtime pre-places the four REL modules and the arena starts at `0x80C00000` to
    protect them. Replace with the game's own loading (M3) and restore the arena.
 5. Determinism audit (#15): `mftb`/`OSGetTime` read the host clock.

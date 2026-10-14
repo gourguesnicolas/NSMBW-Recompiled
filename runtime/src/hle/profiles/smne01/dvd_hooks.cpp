@@ -16,6 +16,7 @@ int32_t DVDReadPrio_8015E834(uint32_t f, uint32_t b, int32_t l, int32_t o, int32
 int32_t DVD__ReadAsyncPrio_HLE_8015e74c(uint32_t f, uint32_t b, int32_t l, int32_t o, uint32_t cb, int32_t p);
 int32_t DVD__ReadAbsAsyncPrio_HLE_801628cc(uint32_t cb, uint32_t b, int32_t l, int32_t o, uint32_t cbfn, int32_t p);
 int32_t DVDLowInit_80164848();
+int32_t DVDCheckDevice_801643FC();
 }
 
 PPC_NATIVE_OVERRIDE_VOID(801CAD30, DVDInit_8015EA1C, (), ());
@@ -28,5 +29,9 @@ PPC_NATIVE_OVERRIDE(801CECC0, DVD__ReadAbsAsyncPrio_HLE_801628cc, int32_t,
          (cb, b, l, o, cbfn, p));
 // DVDLowInit opens /dev/di through IOS (it calls IPCCltInit and IOS_Open).
 PPC_NATIVE_OVERRIDE(801D1230, DVDLowInit_80164848, int32_t, (), ());
+
+// The drive check `main` runs first: it sends a DVDLow request, spins on the callback and compares the
+// reply with a dev-kit signature. Without a drive this reports "ready" (the Mario Kart Wii stub).
+PPC_NATIVE_OVERRIDE(801D0CF0, DVDCheckDevice_801643FC, int32_t, (), ());
 
 #endif // MKW_HOOK_PROFILE_SMNE01
