@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-14 (PR #62 merged; VI hooks in review).
+Last updated: 2026-10-14 (PR #63 merged; GX hooks in review).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 40,958 functions in strict mode; the executable compiles and
@@ -60,11 +60,10 @@ Last updated: 2026-10-14 (PR #62 merged; VI hooks in review).
   addresses: threads, mutexes, messages, contexts, interrupts and masks, EXI, SI, STM, memory protection,
   reset code, IPC client, audio start-up, alarms (about 55 hooks). Evidence and confidence per address:
   `docs/nsmbw/hle-hooks.md` and `docs/nsmbw/os-layout.md`.
-- **Current stop**: `main` runs, the drive check passes, `VIInit` runs, and the game reaches
-  `EGG::GraphicsFifo::create` -> `GXInit` (`0x801C1DB0`, `0x801C2E70`). The GX hooks are not ported; the
-  run ends with a host SEH `0xC00000FF`. Nothing is drawn.
-- **Open PRs**: `port-vi` (14 VI hooks, `OSSetProgressiveMode`, `DVDCheckDevice`, VI statics per profile,
-  `MKW_HANG_DUMP_SECONDS` diagnostic).
+- **Current stop**: `GXInit` runs through the HLE ("GX initialized"). The game then reaches
+  `EGG::CoreControllerMgr::createInstance` -> `WPADInit`-side code (`0x801F9E10`, `0x801F8E50`) and spins:
+  the input hooks (`runtime/src/hle/input`) are not ported. Nothing is drawn yet.
+- **Open PRs**: `port-gx-init` (119 GX hooks, GX statics per profile in `gx_layout.h`).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -90,9 +89,8 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **GX hooks** (MKW `runtime/src/hle/gx`, about 330; `gx_init.cpp` first): the game now needs them
-   immediately (`GXInit`). GX is also inlined into 46 game functions, so the FIFO write path matters.
-   MKW addresses are keyed in `runtime/src/hle/gx/*.cpp`; locate by order and size from `GXInit`.
+1. **Input hooks** (MKW `runtime/src/hle/input/wpad.cpp`, `kpad.cpp`, `pad.cpp`): the spin is in the
+   Wii Remote library. Find `WPADInit` and the KPAD entry points by order and size from `0x801F8E50`.
 2. **IOS hooks** (MKW `runtime/src/hle/ios.cpp`, `nand_isfs.cpp`): `IOS_Open/Close/Read/Write/Seek/Ioctl/
    Ioctlv` and Async forms near `0x80224xxx`-`0x80226xxx`; NAND has MKW `r13` offsets to parametrize.
 3. Audio (AI/DSP/AX hooks, MKW `0x80123F88`-`0x8015D57C` in `runtime/src/hle/audio`).
