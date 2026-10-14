@@ -72,6 +72,25 @@ constexpr uint32_t kDvdExecutingAddr = 0u;
 constexpr uint32_t kGuestDvdFsInit = 0x801CA650u;            // DVDFsInit, inlined into DVDInit as well
 constexpr bool kDvdInitFlagIsWord = true;
 
+// Video interface statics (VI.c). The SDA ones are at the same distance from each other as in Mario Kart
+// Wii and were confirmed against VIGetNextFrameBuffer, VIGetRetraceCount, VIGetTvFormat, VIInit and the
+// callback setters. The HorVer mirror (render and XFB sizes) and the EGG system pointer are not located:
+// zero skips the write, and the post-retrace callback runs without the EGG guard.
+constexpr uint32_t kViInitializedFlagAddr = 0x8042A7C0u;      // r13 - 20160
+constexpr uint32_t kViTimingGuardAddr = 0x8042A7CCu;          // r13 - 20148
+constexpr uint32_t kViTvFormatAddr = 0x8042A830u;             // r13 - 20048
+constexpr uint32_t kViRetraceCountAddr = 0x8042A86Cu;         // r13 - 19988
+constexpr uint32_t kViPreRetraceCallbackAddr = 0x8042A840u;   // r13 - 20032
+constexpr uint32_t kViPostRetraceCallbackAddr = 0x8042A83Cu;  // r13 - 20036
+constexpr uint32_t kViNextFrameBufferAddr = 0x8042A828u;      // r13 - 20056
+constexpr uint32_t kViRetraceQueueAddr = 0x8042A848u;         // r13 - 20024
+constexpr uint32_t kViNextFrameBufferHwAddr = 0x8038FB10u;    // HorVer (0x8038FAE0) + 0x30
+constexpr uint32_t kViRenderWidthAddr = 0u;
+constexpr uint32_t kViRenderHeightAddr = 0u;
+constexpr uint32_t kViXfbWidthAddr = 0u;
+constexpr uint32_t kViXfbHeightAddr = 0u;
+constexpr uint32_t kEggSSystemAddr = 0u;
+
 // Mario Kart Wii only: these two tweaks matched its THP decoder threads and its scheduler start-up.
 // A zero address makes the code that reads them skip the step.
 constexpr uint32_t kSchedulerInitFlagAddr = 0u;
@@ -94,6 +113,21 @@ constexpr uint32_t kDvdPrepareResetAddr = 0x803866A8u;
 constexpr uint32_t kDvdExecutingAddr = 0x803866F0u;
 constexpr uint32_t kGuestDvdFsInit = 0x8015DF1Cu;
 constexpr bool kDvdInitFlagIsWord = false;
+
+constexpr uint32_t kViInitializedFlagAddr = 0x80386B38u;
+constexpr uint32_t kViTimingGuardAddr = 0x80386B44u;
+constexpr uint32_t kViTvFormatAddr = 0x80386BA8u;
+constexpr uint32_t kViRetraceCountAddr = 0x80386BE4u;
+constexpr uint32_t kViPreRetraceCallbackAddr = 0x80386BB8u;
+constexpr uint32_t kViPostRetraceCallbackAddr = 0x80386BB4u;
+constexpr uint32_t kViNextFrameBufferAddr = 0x80386BA0u;
+constexpr uint32_t kViRetraceQueueAddr = 0x80386BC0u;
+constexpr uint32_t kViNextFrameBufferHwAddr = 0x80350890u;
+constexpr uint32_t kViRenderWidthAddr = 0x80350864u;
+constexpr uint32_t kViRenderHeightAddr = 0x80350866u;
+constexpr uint32_t kViXfbWidthAddr = 0x80350872u;
+constexpr uint32_t kViXfbHeightAddr = 0x8035087Cu;
+constexpr uint32_t kEggSSystemAddr = 0x80386F60u;
 
 constexpr uint32_t kInterruptHandlerTablePtrAddr = 0x803868f8u;
 

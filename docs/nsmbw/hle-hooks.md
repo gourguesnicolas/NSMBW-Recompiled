@@ -126,6 +126,21 @@ are 0x20 bytes at `0x80395BE0`, the waiting queues at `0x803958B0`. The other `D
 one writing `0x12`) are not hooked: they are only reached from the drive state machine that `DVDInit` no
 longer starts.
 
+## Video interface and the drive check, registered in `profiles/smne01/vi_hooks.cpp` and `dvd_hooks.cpp` (#16)
+
+The 14 VI hooks use the addresses of the table in "Alarms and video" above. Found while running:
+
+| Function | Mario Kart Wii | SMNE01 rev 2 | Confidence | Evidence |
+| --- | --- | --- | --- | --- |
+| `OSSetProgressiveMode` | n/a (inlined) | `0x801B00F0` | medium | reads bit 1 of `0xCC00206E`, caches it in a halfword at `r13 - 24920`; reimplemented in `vi_hooks.cpp` with the status read as zero |
+| `DVDCheckDevice` (the drive check `main` runs first) | `0x801643FC` | `0x801D0CF0` | medium | sends a DVDLow request, spins on its callback, compares the reply with a dev-kit signature (`RVT`), ends in the fatal screen at `0x801D0800` |
+
+VI statics (all in `os_layout.h`): `r13 - 20160` initialized flag, `-20148` timing guard, `-20048` TV format,
+`-20056` next frame buffer, `-20036` / `-20032` post / pre retrace callbacks, `-20024` retrace queue,
+`-19988` retrace count. They sit at the same distances from each other as in Mario Kart Wii (offset
+`+0xA3C88` from its addresses), which is how they were found; each was then matched with a function that
+reads or writes it. The HorVer mirror of the render and XFB sizes is not written for this game.
+
 ## Not found, or no counterpart
 
 - `OS__SleepTicks`: no function calls both `OSSetAlarm` and `OSSleepThread`; probably inlined.

@@ -1462,6 +1462,23 @@ int RuntimeMain(int argc, char** argv) {
                   << std::endl;
         g_auroraInitialized.store(true, std::memory_order_release);
 
+        // Diagnostic aid: MKW_HANG_DUMP_SECONDS=N prints the guest CPU state three times, 2 s apart, after
+        // N seconds. The last call site (LR) and the active translated function show where a run that
+        // neither crashes nor finishes is spending its time.
+        if (const char* dumpAfter = std::getenv("MKW_HANG_DUMP_SECONDS"); dumpAfter && *dumpAfter) {
+            const int seconds = std::atoi(dumpAfter);
+            if (seconds > 0) {
+                std::thread([seconds] {
+                    std::this_thread::sleep_for(std::chrono::seconds(seconds));
+                    for (int i = 0; i < 3; ++i) {
+                        std::cerr << "[runtime] hang dump " << (i + 1) << " of 3" << std::endl;
+                        SystemBridge::DumpCpuState(&GetPersistentCpuContext());
+                        std::this_thread::sleep_for(std::chrono::seconds(2));
+                    }
+                }).detach();
+            }
+        }
+
         auto entry = ResolveEntry();
         InitializePersistentCpuContext();
         auto& cpu = GetPersistentCpuContext();

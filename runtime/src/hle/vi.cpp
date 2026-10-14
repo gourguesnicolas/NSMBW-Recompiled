@@ -8,6 +8,7 @@
 #include "fiber_manager.h"
 #include "platform/host_platform.h"
 #include "runtime_log.h"
+#include "os/os_layout.h"
 
 #include <dolphin/vi.h>
 
@@ -132,23 +133,22 @@ std::mutex g_viMutex;
 ViState g_vi;
 
 
-// Guest-side state addresses used by the SDK's VI globals.
-constexpr uint32_t kViInitializedFlagAddr   = 0x80386b38;
-constexpr uint32_t kViTvFormatAddr          = 0x80386ba8;
-constexpr uint32_t kViRenderWidthAddr       = 0x80350864;
-constexpr uint32_t kViRenderHeightAddr      = 0x80350866;
-constexpr uint32_t kViXfbWidthAddr          = 0x80350872;
-constexpr uint32_t kViXfbHeightAddr         = 0x8035087c;
-constexpr uint32_t kViRetraceCountAddr      = 0x80386be4; // matches VIWaitForRetrace/handler
-constexpr uint32_t kViTimingGuardAddr       = 0x80386b44;
-constexpr uint32_t kViPreRetraceCallback    = 0x80386bb8;
-constexpr uint32_t kViPostRetraceCallback   = 0x80386bb4;
-constexpr uint32_t kViNextFrameBufferAddr   = 0x80386ba0;
-constexpr uint32_t kViNextFrameBufferHwAddr = 0x80350890;
-constexpr uint32_t kViRetraceQueueAddr      = 0x80386bc0; // Thread queue for VIWaitForRetrace
-
-// EGG::BaseSystem::sSystem pointer - must be non-null before post-retrace callback is valid
-constexpr uint32_t kEggSSystemAddr = 0x80386F60;
+// Guest-side state addresses used by the SDK's VI globals. They are per game: see os_layout.h.
+using OsHleInternal::kViInitializedFlagAddr;
+using OsHleInternal::kViTvFormatAddr;
+using OsHleInternal::kViRenderWidthAddr;
+using OsHleInternal::kViRenderHeightAddr;
+using OsHleInternal::kViXfbWidthAddr;
+using OsHleInternal::kViXfbHeightAddr;
+using OsHleInternal::kViRetraceCountAddr;
+using OsHleInternal::kViTimingGuardAddr;
+using OsHleInternal::kViPreRetraceCallbackAddr;
+using OsHleInternal::kViPostRetraceCallbackAddr;
+using OsHleInternal::kViNextFrameBufferAddr;
+using OsHleInternal::kViNextFrameBufferHwAddr;
+using OsHleInternal::kViRetraceQueueAddr;
+// EGG::BaseSystem::sSystem pointer - must be non-null before post-retrace callback is valid (0: not guarded)
+using OsHleInternal::kEggSSystemAddr;
 
 std::chrono::microseconds IntervalForFormat(uint32_t tvFormat) {
     // NTSC-ish defaults to 60 Hz; PAL uses 50 Hz.
@@ -218,21 +218,31 @@ void ViSetR3(CpuContext* ctx, uint32_t value)
     }
 }
 
+template <typename T>
+void WriteIfMapped(uint32_t address, T value) {
+    if (address == 0) {
+        return;
+    }
+    if constexpr (sizeof(T) == 1) { Memory::Write8(address, static_cast<uint8_t>(value)); }
+    else if constexpr (sizeof(T) == 2) { Memory::Write16(address, static_cast<uint16_t>(value)); }
+    else { Memory::Write32(address, static_cast<uint32_t>(value)); }
+}
+
 void WriteGuestStateLocked() {
     try {
-        Memory::Write8(kViInitializedFlagAddr, 1);
-        Memory::Write8(kViTimingGuardAddr, 1);
-        Memory::Write32(kViTvFormatAddr, g_vi.tvFormat);
-        Memory::Write16(kViRenderWidthAddr, static_cast<uint16_t>(g_vi.renderWidth));
-        Memory::Write16(kViRenderHeightAddr, static_cast<uint16_t>(g_vi.renderHeight));
-        Memory::Write16(kViXfbWidthAddr, static_cast<uint16_t>(g_vi.xfbWidth));
-        Memory::Write16(kViXfbHeightAddr, static_cast<uint16_t>(g_vi.xfbHeight));
-        Memory::Write32(kViRetraceCountAddr, g_vi.retraceCount);
-        Memory::Write32(kViPreRetraceCallback, g_vi.preRetraceCallback);
-        Memory::Write32(kViPostRetraceCallback, g_vi.postRetraceCallback);
+        WriteIfMapped<uint8_t>(kViInitializedFlagAddr, 1);
+        WriteIfMapped<uint8_t>(kViTimingGuardAddr, 1);
+        WriteIfMapped<uint32_t>(kViTvFormatAddr, g_vi.tvFormat);
+        WriteIfMapped<uint16_t>(kViRenderWidthAddr, static_cast<uint16_t>(g_vi.renderWidth));
+        WriteIfMapped<uint16_t>(kViRenderHeightAddr, static_cast<uint16_t>(g_vi.renderHeight));
+        WriteIfMapped<uint16_t>(kViXfbWidthAddr, static_cast<uint16_t>(g_vi.xfbWidth));
+        WriteIfMapped<uint16_t>(kViXfbHeightAddr, static_cast<uint16_t>(g_vi.xfbHeight));
+        WriteIfMapped<uint32_t>(kViRetraceCountAddr, g_vi.retraceCount);
+        WriteIfMapped<uint32_t>(kViPreRetraceCallbackAddr, g_vi.preRetraceCallback);
+        WriteIfMapped<uint32_t>(kViPostRetraceCallbackAddr, g_vi.postRetraceCallback);
         // Write PENDING frame buffer to guest memory so SDK code sees the queued value
-        Memory::Write32(kViNextFrameBufferAddr, g_vi.pendingNextFrameBuffer);
-        Memory::Write32(kViNextFrameBufferHwAddr, g_vi.pendingNextFrameBuffer);
+        WriteIfMapped<uint32_t>(kViNextFrameBufferAddr, g_vi.pendingNextFrameBuffer);
+        WriteIfMapped<uint32_t>(kViNextFrameBufferHwAddr, g_vi.pendingNextFrameBuffer);
     } catch (const ::Memory::AccessViolation& e) {
         LogMemoryError(RT_TAG_VI, "WriteGuestStateLocked", e);
     }
@@ -341,7 +351,7 @@ void AdvanceRetrace(CpuContext* ctx, Clock::time_point retraceStamp, bool servic
         if (postCb) {
             // Guard: only invoke callback if sSystem is initialized
             // The callback dereferences sSystem which must be non-null
-            uint32_t sSystemPtr = Memory::Read32(kEggSSystemAddr);
+            uint32_t sSystemPtr = kEggSSystemAddr != 0 ? Memory::Read32(kEggSSystemAddr) : 1u;
             if (sSystemPtr != 0) {
                 InvokeIndirectCpu(postCb, ctx);
             }
