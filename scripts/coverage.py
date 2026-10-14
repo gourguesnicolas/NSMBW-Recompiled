@@ -177,11 +177,13 @@ def main():
                 target = t.sections[sec][0] + addend
             else:
                 continue
-            if kind not in (R_PPC_REL24, R_PPC_ADDR32) or not owner(target) or target % 4:
+            if kind not in (R_PPC_REL24, R_PPC_ADDR32, R_PPC_ADDR16_LO, R_PPC_ADDR16_HA)                     or not owner(target) or target % 4:
                 continue
-            if kind == R_PPC_ADDR32 and not code.looks_like_function_start(target):
+            if kind != R_PPC_REL24 and not code.looks_like_function_start(target):
                 rejected.add(target)
                 continue
+            # A `lis`/`addi` pair building a function address (a constructor passed to
+            # __construct_array, a callback) carries ADDR16_HA/LO relocations, not ADDR32.
             candidates.setdefault(target, set()).add("call" if kind == R_PPC_REL24 else "ptr")
     rejected -= set(candidates)
 
