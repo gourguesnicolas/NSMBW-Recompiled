@@ -207,6 +207,19 @@ Same implementations as Mario Kart Wii; the statics are per game (`audio.cpp`, `
   DRAM length 64, DSP address 3282: identical to MKW, so the same ucode).
 - Not found: `AIGetDSPSampleRate`, the AXFX reverb callback.
 
+## IOS client and SYSCONF status, registered in `profiles/smne01/ios_hooks.cpp` and `sc_hooks.cpp` (#16)
+
+The IOS request functions come in (asynchronous, synchronous) pairs, in the order of the command codes
+they post (`r0` = 1 open, 2 close, 3 read, 4 write, 5 seek, 6 ioctl, 7 ioctlv), the same order as Mario
+Kart Wii's `0x801937E0`..`0x801945E0`: open `0x80224B50`/`0x80224C70`, close `0x80224DA0`/`0x80224E60`, read
+`0x80224F10`/`0x80225010`, write `0x80225120`/`0x80225220`, seek `0x80225330`/`0x80225410`, ioctl
+`0x80225500`/`0x80225640`, ioctlv `0x802258B0`/`0x802259A0`. `0x80226490` is `ISFS_OpenLib` (it references
+`/dev/fs`); it is not replaced and works translated.
+
+SC: `0x801DB8E0` is the status poll OSInit and the input code call (state byte at `r13 - 19504`, 1 = busy);
+`0x801DD1D0` is `SCGetAspectRatio`. The other getters read the in-memory SYSCONF buffer, which stays at its
+defaults because there is no `SYSCONF` file.
+
 ## Not found, or no counterpart
 
 - `OS__SleepTicks`: no function calls both `OSSetAlarm` and `OSSleepThread`; probably inlined.
