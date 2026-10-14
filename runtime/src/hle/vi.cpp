@@ -807,6 +807,12 @@ PPC_NATIVE_OVERRIDE_VOID(801BA9A4, VIFlush_HLE_801ba9a4, (CpuContext* ctx), (ctx
 extern "C" void VISetNextFrameBuffer_HLE_801baab8(CpuContext* ctx)
 {
     const uint32_t fbPtr = ctx ? ctx->gpr[3] : 0;
+    // MKW_TRACE_VI=1 prints a line every 60 frame-buffer submissions: whether the game presents frames.
+    static const bool traceFrames = std::getenv("MKW_TRACE_VI") != nullptr;
+    static uint32_t frameCount = 0;
+    if (traceFrames && (++frameCount % 60u) == 1u) {
+        std::fprintf(stderr, "[vi] frame buffer submission %u: 0x%08X\n", frameCount, fbPtr);
+    }
     {
         std::lock_guard<std::mutex> lock(g_viMutex);
         EnsureInitializedLocked();

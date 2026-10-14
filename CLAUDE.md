@@ -50,22 +50,25 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-14 (PR #66 open; audio hooks and function discovery in review).
+Last updated: 2026-10-14 (PR #67 open; IOS/NAND, SC and trace switches in review).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
   links (#13). `runtime.native_hooks: false` keeps the Mario Kart Wii (MKW) hooks off; this game's hooks live
   in `runtime/src/hle/profiles/smne01` (profile `smne01`, selected by `runtime.hook_profile`).
-- **M2 in progress (#16, first launch)**: the executable passes `OSInit`, DVD, VI, GXInit, the Wii Remote/KPAD
-  start-up, the ROM font, the audio set-up (AI, DSP, AX task) and the game loads its own REL modules from the
-  disc (`d_basesNP__prolog` ran at the manifest address). It now runs without a crash: after about 20 s the
-  hang dumps show the main thread inside `0x800E4E40` -> `0x800E46E0` (the game's frame/scene loop) and
-  the AX/DSP mix thread running. Nothing is drawn yet; whether the loop is waiting (VI retrace, NAND, an
-  IOS call) or running is not established.
-- **Function discovery**: `scripts/coverage.py` now also counts `lis`/`addi` relocations (ADDR16_HA/LO) as
-  function pointers: a constructor passed to `__construct_array` was a function start no call reached
-  (190 new starts in `MAP.txt`).
-- **Open PRs**: `port-modules` (#66), `port-audio` (audio hooks + discovery).
+- **M2 in progress (#16, first launch)**: the executable boots through to the game's frame loop and
+  **presents 60 frames per second** (`MKW_TRACE_VI=1`). Passed: `OSInit`, DVD, VI, GX init, WPAD/KPAD, ROM
+  font, audio (AI/DSP/AX), the game's own REL loading, IOS (open/close/read/write/seek/ioctl/ioctlv, sync and
+  async, answered from the host NAND), SC status. The game reads, in order (`MKW_TRACE_DVD=1`): the strap
+  layout (`wiiStrap.arc`), fonts, messages, HomeButton, sound (`wii_mj2d_sound.brsar`), the four REL
+  modules, `Env_*.arc`, the wipe layouts, `effect_wnmario.*`. It then stops reading the disc.
+- **What is not known**: whether the picture is correct. Nothing on screen has been checked by a person yet.
+  Also unhandled so far: `/dev/es` ioctl 29 and 27, the NAND file `play_rec.dat`
+  (`/title/00000001/00000002/data`, open mode 3 never creates it), `SYSCONF` (not created; SC getters other
+  than aspect ratio return defaults).
+- **Function discovery**: `scripts/coverage.py` also counts `lis`/`addi` relocations (ADDR16_HA/LO) as
+  function pointers (190 new starts in `MAP.txt`).
+- **Open PRs**: #67 (audio hooks, function discovery) and `port-ios` (IOS, SC, trace switches).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -77,7 +80,9 @@ Last updated: 2026-10-14 (PR #66 open; audio hooks and function discovery in rev
 2. Run from `build/nsmbw` with a portable layout: an empty `portable.txt` next to the exe and
    `UserData/Config.toml` containing `[paths]` / `dvd_root = "<extracted disc dir>"` (the directory that holds
    `files/` and `sys/fst.bin`). Everything there is git-ignored.
-3. Read `stderr` and `UserData/Logs/<run>/`: a stop prints the guest address (`lr=`, "guest address:").
+3. Trace switches: `MKW_TRACE_DVD=1` (every disc file read), `MKW_TRACE_VI=1` (a line per 60 frame-buffer
+   submissions). Close any running `WiiCompiled.exe` before rebuilding: it locks the executable.
+4. Read `stderr` and `UserData/Logs/<run>/`: a stop prints the guest address (`lr=`, "guest address:").
    For a run that neither crashes nor ends, set `MKW_HANG_DUMP_SECONDS=20`: the CPU state is printed three
    times (last call site in `lr`).
    To list MMIO-touching functions still reachable from `__start`, scan `generated/functions` for the
@@ -91,15 +96,17 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **Find what the main loop waits for**: sample with `MKW_HANG_DUMP_SECONDS`, then look for the first VI
-   retrace wait, the first IOS/NAND call (`IOS_Open`, `/shared2`), or a thread blocked on a message queue.
-2. **IOS hooks** (MKW `runtime/src/hle/ios.cpp`, `nand_isfs.cpp`): `IOS_Open/Close/Read/Write/Seek/Ioctl/
-   Ioctlv` and Async forms near `0x80224xxx`-`0x80226xxx`; NAND has MKW `r13` offsets to parametrize.
-3. First frame: check the GX path draws (nothing validated on screen yet), VI retrace callbacks.
-4. GameCube pad (`PADInit`/`PADRead`), `WPADGetDpdSensitivity`, `KPADGetUnifiedWpadStatus`, the KPADStatus
-   layout the game reads; the AXFX reverb callback and `AIGetDSPSampleRate` were not located.
+1. **Look at the window** and report: black, strap screen, logo, garbage. If black or wrong, trace GX (draw
+   calls reaching aurora, EFB copies, `VIFlush` of the XFB) before anything else.
+2. **Fill the missing console data**: `play_rec.dat`, `SYSCONF` (or the SC getters: language, sound mode,
+   progressive, screen saver; the SDK's SC functions are at `0x801DB080`-`0x801DDF00`), `/dev/es` ioctls.
+3. **Controller**: the game needs a real KPAD sample; check WPADProbe type, buttons, and that the strap
+   screen can be passed. GameCube pad (`PADInit`/`PADRead`) when reached.
+4. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
+   `KPADGetUnifiedWpadStatus`, `NANDInit`/NAND API level (MKW hooks it at `0x8019xxxx`; here only the IOS
+   level is replaced and it works so far).
 5. Determinism audit (#15): `mftb`/`OSGetTime` read the host clock.
-6. M2 exit: first frame on screen, stable main loop.
+6. M2 exit: stable main loop and a screen a person can recognise.
 
 ### Do not forget
 - Remove nothing from the MKW profile; keep `allow_unsupported_instructions: false`.

@@ -919,6 +919,13 @@ extern "C" int32_t DVDReadPrio_8015E834(uint32_t fileInfoPtr, uint32_t bufferPtr
                             DvdReadContract::Describe(failure));
     }
 
+    // MKW_TRACE_DVD=1 prints every file read, to see what the game asks the disc for and in what order.
+    static const bool traceReads = std::getenv("MKW_TRACE_DVD") != nullptr;
+    if (traceReads) {
+        std::fprintf(stderr, "[dvd] read %s +0x%X len 0x%X -> 0x%08X\n",
+                     HostPathText(entry.hostPath).c_str(), uOffset, uLength, bufferPtr);
+    }
+
     CopyToGuestAsDma(bufferPtr, tempBuf.data(), uLength);
 
     Memory::Write32(fileInfoPtr + DVD_CB_OFFSET_TRANSFERRED, uLength);
