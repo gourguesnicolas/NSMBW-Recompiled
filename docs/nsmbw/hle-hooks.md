@@ -141,6 +141,32 @@ VI statics (all in `os_layout.h`): `r13 - 20160` initialized flag, `-20148` timi
 `+0xA3C88` from its addresses), which is how they were found; each was then matched with a function that
 reads or writes it. The HorVer mirror of the render and XFB sizes is not written for this game.
 
+## Graphics library (`GX*`), registered in `profiles/smne01/gx_hooks.cpp` (#16)
+
+119 hooks of `runtime/src/hle/gx` are registered for this game. The GX library is laid out the same way
+in both games, so the Mario Kart Wii hook list was aligned with this game's function starts by order and
+size (a sequence alignment, then checked by hand):
+
+- anchors from the community's names: `GXSetProjection` `0x801C9840`, `GXLoadPosMtxImm` `0x801C9940`,
+  `GXSetCurrentMtx` `0x801C9A60`, `GXLoadTexMtxImm` `0x801C9A80`, `GXSetViewport` `0x801C9C10`,
+  `GXSetScissor` `0x801C9C60`, `GXGetScissor` `0x801C9CD0`;
+- read from this game's own code: `GXInit` `0x801C1DB0` (calls `GXInitFifoBase` `0x801C2CE0`,
+  `GXSetCPUFifo` `0x801C2E70`, `GXSetGPFifo` `0x801C3050`), `__GXFifoInit` `0x801C3540`,
+  `GXGetCPUFifo` `0x801C3440`, `GXFlush` `0x801C4AD0`, `GXBeginDisplayList` `0x801C9470`,
+  `__GXPEInit` `0x801C5280`, `__GXSetDirtyState` `0x801C52F0`; the interrupt handlers registered by the
+  FIFO and PE set-up are `0x801C2B80` (CP), `0x801C5120` (PE token), `0x801C5200` (PE finish);
+- the rest is positional (`GXInitTexObj` `0x801C6D90`, `GXSetVtxDesc` `0x801C37C0`,
+  `GXSetVtxAttrFmtv` `0x801C420C`, `GXSetTevOp` `0x801C8250`, ... all within `0x10` of the size ratio).
+
+The full list is the registration file itself. Jump-table case targets (`caseD`) are not registered: the
+parent function is hooked as a whole. Not registered: `GXSetZScaleOffset` (absent here), `GXSetDrawSync`
+(not found, probably inlined) and the two `GXEnd` copies in Mario Kart Wii's game code.
+
+GX statics (`gx_layout.h`): `GXData` `0x8038FC00` (read from `GXInit`), its pointer at `r2 - 20216`, the FIFO
+objects right after it (`0x80390200`, `0x80390224`), the display-list FIFO `0x803904D0` (read from
+`GXBeginDisplayList`), and the small-data flags and thread queues at `r13 - 19912..-19872`, found by their
+distance to each other and confirmed in `GXInit`, `__GXFifoInit` and `GXDrawDone`.
+
 ## Not found, or no counterpart
 
 - `OS__SleepTicks`: no function calls both `OSSetAlarm` and `OSSleepThread`; probably inlined.
