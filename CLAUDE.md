@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-14 (PR #64 merged; input hooks in review).
+Last updated: 2026-10-14 (PR #65 merged; module loading by the game in review).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 40,958 functions in strict mode; the executable compiles and
@@ -60,12 +60,12 @@ Last updated: 2026-10-14 (PR #64 merged; input hooks in review).
   Wii Remote/KPAD start-up. Hooked at SMNE01 addresses: OS (about 55), DVD, VI, 119 GX, WPAD/KPAD
   (`profiles/smne01/input_hooks.cpp`). Evidence and confidence per address: `docs/nsmbw/hle-hooks.md` and
   `docs/nsmbw/os-layout.md`.
-- **Current stop**: a null virtual call in `EGG::TextureBuffer::initialize` (`0x802D3490`, called from the
-  game's init `0x800E48D0`): `operator new(60)` returns NULL because the current EGG heap is NULL, because
-  the game heaps (5 MiB, 9.5 MiB, ...) cannot be created. Cause: the arena is seeded to start at
-  `0x80C00000` (`kBootMem1ArenaLo`) to protect the four pre-linked REL modules at `0x80768500..0x80B8E000`,
-  which leaves 12 MiB where the real game has about 20 MiB.
-- **Open PRs**: `port-input` (input hooks).
+- **Current stop**: `dAudio::init` (`0x80069790`) reaches the audio interface: MMIO read at `0xCD006C00`
+  (AI/DSP) from `0x80194B90`. Next: the audio hooks (AI/DSP/AX, MKW `runtime/src/hle/audio`).
+  Passed since the input hooks: the game heaps (arena restored, REL images no longer embedded), the ROM font
+  read (`__OSReadROM` returns zeros; `OSGetFontEncode` is hooked so it is not inlined and answers ANSI),
+  `EXILock` (always granted, because `EXIUnlock` is a stub).
+- **Open PRs**: `port-modules` (module loading by the game, font, EXILock).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -91,16 +91,12 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **Module loading and arena (blocking)**: `generate-data-init` writes the four REL images at their load
-   addresses at start-up (`Loaded d_...NP ... @ 0x...` on stdout) and `kBootMem1ArenaLo` is `0x80C00000` so
-   `OSInit`'s `ClearArena` does not wipe them. The game's own heap creation then runs out of room. Options:
-   let the game load the RELs itself (the DVD HLE serves the disc files; OSLink is translated code; not tried yet) and restore
-   the arena to its natural start (`0` in `os_layout.h` skips the seed), or keep the images and seed
-   them after `ClearArena` while keeping them out of the heap. The real run allocates them inside the game
-   heap at those very addresses, so letting the game load them is the faithful route.
+1. **Audio hooks** (AI/DSP/AX, MKW `0x80123F88`-`0x8015D57C` in `runtime/src/hle/audio`; `dAudio::init`
+   is where the run stops). The REL loading by the game itself is not reached yet: when it is, check the
+   modules land at the manifest addresses (`0x80768500...`), since the translated code is fixed there.
 2. **IOS hooks** (MKW `runtime/src/hle/ios.cpp`, `nand_isfs.cpp`): `IOS_Open/Close/Read/Write/Seek/Ioctl/
    Ioctlv` and Async forms near `0x80224xxx`-`0x80226xxx`; NAND has MKW `r13` offsets to parametrize.
-3. Audio (AI/DSP/AX hooks, MKW `0x80123F88`-`0x8015D57C` in `runtime/src/hle/audio`).
+3. (Audio is step 1.)
 4. GameCube pad (`PADInit`/`PADRead`, MKW `runtime/src/hle/input/pad.cpp`) when the game reaches it;
    `WPADGetDpdSensitivity`, `KPADGetUnifiedWpadStatus`; check the KPADStatus layout the game reads.
 5. Determinism audit (#15): `mftb`/`OSGetTime` read the host clock.

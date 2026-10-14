@@ -2871,7 +2871,7 @@ int RunGenerateDataInit()
     {
         Directory.CreateDirectory(outputDir);
     }
-    if (loadedProject.Inputs.Rels.Count > 0)
+    if (loadedProject.Inputs.Rels.Count > 0 && loadedProject.Runtime.PreloadModules)
     {
         var moduleImages = LinkConfiguredModules();
         DataSectionGenerator.Generate(

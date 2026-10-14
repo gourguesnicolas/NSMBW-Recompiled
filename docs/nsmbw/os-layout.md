@@ -46,7 +46,7 @@ The thread, mutex, message queue and alarm entry points are in `hle-hooks.md`.
 | Value | Address | Meaning |
 | --- | --- | --- |
 | Disc ID | `0x80000000` | `SMNE`, then maker `01`, disc 0, revision 2 (`0x30310002`) |
-| MEM1 arena low | `0x80000030`, `0x8000310C` | `0x80C00000`, above the last REL module (see below) |
+| MEM1 arena low | `0x80000030`, `0x8000310C` | `0`, as the boot code leaves it: `OSInit` then starts the arena after the stack (see below) |
 | IOS version | `0x80003140` | IOS 53 revision 5663 (`0x0035161F`); the TMD asks for system version `0x100000035` |
 | Required IOS | `0x80003188` | `0x00350000`: `OSInit` compares the major number and the revision with it, and calls `OSFatal` otherwise |
 | Interrupt handler table pointer | `r13 - 20392` = `0x8042A6D8` | points at `0x80003040` |
@@ -55,10 +55,11 @@ The thread, mutex, message queue and alarm entry points are in `hle-hooks.md`.
 | EXI control blocks | `0x8038F710` | `0x40` bytes per channel |
 | Arena clear | `0x801AA140`, `0x801AA320` | `OSInit` zeroes `[arena low, arena high)` on a cold boot: with Mario Kart Wii's arena start it wiped the game's own `.sdata`, then `OSReport` jumped through a null pointer |
 
-The runtime places the four REL modules at `0x80768500..0x80B8E000` before the game starts. The game would
-otherwise load them itself into a heap. Until the module loader is handled (M3), the arena starts above
-them so that neither the arena clear nor the game's heaps overwrite them. This costs the game the MEM1
-below `0x80C00000` (about 12 MiB of the 24 MiB), which has to be revisited.
+The four REL modules (`0x80768500..0x80B8E000`) are no longer embedded: the manifest sets
+`runtime.preload_modules: false` and the game loads `d_*NP.rel.LZ` from the disc into its own heap. An
+earlier step placed them before the game started and seeded the arena at `0x80C00000` to keep the arena
+clear off them, which left the game about 12 MiB of the 24 MiB and made its heap creation fail
+(`EGG::TextureBuffer::initialize` then called through NULL).
 
 ## Not ported
 

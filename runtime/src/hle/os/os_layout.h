@@ -31,13 +31,12 @@ constexpr uint32_t kAlarmQueueOffsetFromR13 = 0x5000u;        // AlarmQueue at r
 constexpr uint32_t kStmStateOffsetFromR13 = 0x4F64u;          // __OSInitSTM: initialized flag, then two handles
 
 // Low-memory values the boot code leaves for OSInit: the disc ID at 0x80000000 and the MEM1 arena at
-// 0x80000030. Left alone, OSInit would start the arena right after the 64 KiB stack (0x8043FC40) and
-// ClearArena would wipe everything above it, including the four REL modules the runtime places at
-// 0x80768500..0x80B8E000 before the game runs. The arena therefore starts above the last module.
-// Letting the game load its own modules at run time replaces this later (M3).
+// 0x80000030. The arena start is left zero, as the boot code leaves it: OSInit then starts the arena right
+// after the stack. The game loads its own REL modules from the disc into its heap (the manifest sets
+// runtime.preload_modules: false), at the addresses recorded in the manifest.
 constexpr uint32_t kBootDiscGameCode = 0x534D4E45u;          // "SMNE"
 constexpr uint32_t kBootDiscMakerInfo = 0x30310002u;         // maker "01", disc 0, revision 2
-constexpr uint32_t kBootMem1ArenaLo = 0x80C00000u;
+constexpr uint32_t kBootMem1ArenaLo = 0u;
 // 0x80003140/0x80003144/0x80003188. The title's TMD asks for IOS 53 (system version 0x100000035). The
 // guest checks the major number and that the revision is not below the required word; the date is only
 // printed.

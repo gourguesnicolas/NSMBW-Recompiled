@@ -16,6 +16,7 @@
 #define MKW_NATIVE_HOOKS 1
 
 #include "hle_stubs.h"
+#include "memory.h"
 
 // Implementations in runtime/src/hle/os. Their names keep the Mario Kart Wii address they were
 // written against; only the registration below is per game.
@@ -133,5 +134,50 @@ PPC_NATIVE_OVERRIDE(802247D0, IPCCltInit_80193478, int32_t, (CpuContext* ctx), (
 // Alarms (OSAlarm.c).
 PPC_NATIVE_OVERRIDE_VOID(801AB540, OSSetAlarm_HLE_801a0870, (CpuContext* ctx), (ctx));
 PPC_NATIVE_OVERRIDE_VOID(801AB5B0, OS__SetPeriodicAlarm_801a08e0, (CpuContext* ctx), (ctx));
+
+// EXILock (EXIBios.c, 0x801B9D70). EXIUnlock is stubbed (above), so the lock bit the real EXILock tests
+// would never be cleared and the next user, the ROM font read in OSInitFont, would wait forever. There
+// is no other EXI client on this runtime, so the lock is always granted.
+extern "C" uint32_t EXILock_HLE_801B9D70(uint32_t channel, uint32_t device, uint32_t callback)
+{
+    (void)channel;
+    (void)device;
+    (void)callback;
+    return 1;
+}
+PPC_NATIVE_OVERRIDE(801B9D70, EXILock_HLE_801B9D70, uint32_t, (uint32_t channel, uint32_t device, uint32_t callback), (channel, device, callback));
+
+// __OSReadROM (0x801B4310): copies from the console's boot ROM over EXI channel 0. The ROM holds the
+// system fonts the game's dRomFontMgr loads. There is no boot ROM image here (it is not part of the game
+// and cannot be shipped), so the read returns zeros, which is what a console without the ROM data gives.
+extern "C" uint32_t OSReadROM_HLE_801B4310(uint32_t buffer, uint32_t length, uint32_t offset)
+{
+    (void)offset;
+    for (uint32_t i = 0; i < length; ++i) {
+        Memory::Write8(buffer + i, 0);
+    }
+    return 1;
+}
+PPC_NATIVE_OVERRIDE(801B4310, OSReadROM_HLE_801B4310, uint32_t, (uint32_t buffer, uint32_t length, uint32_t offset), (buffer, length, offset));
+
+// Font encoding (OSFont.c, OSGetFontEncode at 0x801B00A0). The SDK decides between ANSI and Shift-JIS by
+// reading the video interface's DTV status register (0xCC00206E) when the boot info does not say. The
+// function is small enough that the translator inlines it at its callers; registering it here keeps the
+// inlining off. This is the North American release, so the answer is ANSI (0). The two statics are the
+// cached encoding (r13 - 24920, 0xFFFF until first asked) and the word the SDK stores next to it
+// (r13 - 20424, the address of the function after it).
+extern "C" uint32_t OSGetFontEncode_HLE_801B00A0()
+{
+    constexpr uint32_t kFontEncodeCache = 0x80429528u;
+    constexpr uint32_t kFontEncodeAux = 0x8042A6B8u;
+    const uint32_t cached = Memory::Read16(kFontEncodeCache);
+    if (cached == 0xFFFFu) {
+        Memory::Write16(kFontEncodeCache, 0);
+        Memory::Write32(kFontEncodeAux, 0x801B05A0u);
+        return 0;
+    }
+    return cached;
+}
+PPC_NATIVE_OVERRIDE(801B00A0, OSGetFontEncode_HLE_801B00A0, uint32_t, (), ());
 
 #endif // MKW_HOOK_PROFILE_SMNE01
