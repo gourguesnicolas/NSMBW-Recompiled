@@ -110,7 +110,8 @@ internal sealed class TranslationProjectConfig
             abiDirectories,
             ResolvePath(workspaceRoot, dto.Runtime?.NativeRegistrationRoot ?? "runtime/src"),
             dto.Runtime?.NativeHooks ?? true,
-            dto.Runtime?.HookProfile);
+            dto.Runtime?.HookProfile,
+            dto.Runtime?.PreloadModules ?? true);
         var outputRoot = ResolvePath(workspaceRoot, dto.Output?.Root ?? "generated");
         var output = new ProjectOutput(
             outputRoot,
@@ -442,6 +443,7 @@ internal sealed class TranslationProjectConfig
         public string? NativeRegistrationRoot { get; init; }
         public bool? NativeHooks { get; init; }
         public string? HookProfile { get; init; }
+        public bool? PreloadModules { get; init; }
     }
 
     private sealed class OutputDto
@@ -515,11 +517,16 @@ internal sealed record ProjectTranslation(
 /// Names a set of runtime sources and constants written for this game (for example the OS data
 /// addresses). The runtime build defines MKW_HOOK_PROFILE_&lt;NAME&gt; when it is set.
 /// </param>
+/// <param name="PreloadModules">
+/// True embeds the relocated REL images in the executable and places them at their load addresses at
+/// start-up. False leaves them out: the game loads and links its own modules from the disc.
+/// </param>
 internal sealed record ProjectRuntime(
     IReadOnlyList<string> NativeAbiDirectories,
     string NativeRegistrationRoot,
     bool NativeHooks = true,
-    string? HookProfile = null);
+    string? HookProfile = null,
+    bool PreloadModules = true);
 internal sealed record ProjectOutput(
     string Root,
     string Functions,

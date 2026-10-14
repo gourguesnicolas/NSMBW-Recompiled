@@ -58,6 +58,9 @@ runtime:
   # The hooks written for this game: addresses from docs/nsmbw/hle-hooks.md and docs/nsmbw/os-layout.md.
   # The translator reads native registrations from this directory only.
   hook_profile: smne01
+  # The game loads and links its own REL modules (d_*NP.rel.LZ) from the disc, so the executable
+  # does not embed their images.
+  preload_modules: false
   native_registration_root: runtime/src/hle/profiles/smne01
 
 output:
