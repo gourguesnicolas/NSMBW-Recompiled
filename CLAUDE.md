@@ -50,20 +50,22 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-14 (PR #63 merged; GX hooks in review).
+Last updated: 2026-10-14 (PR #64 merged; input hooks in review).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 40,958 functions in strict mode; the executable compiles and
   links (#13). `runtime.native_hooks: false` keeps the Mario Kart Wii (MKW) hooks off; this game's hooks live
   in `runtime/src/hle/profiles/smne01` (profile `smne01`, selected by `runtime.hook_profile`).
-- **M2 in progress (#16, first launch)**: the executable starts and passes `OSInit`. Hooked at SMNE01
-  addresses: threads, mutexes, messages, contexts, interrupts and masks, EXI, SI, STM, memory protection,
-  reset code, IPC client, audio start-up, alarms (about 55 hooks). Evidence and confidence per address:
-  `docs/nsmbw/hle-hooks.md` and `docs/nsmbw/os-layout.md`.
-- **Current stop**: `GXInit` runs through the HLE ("GX initialized"). The game then reaches
-  `EGG::CoreControllerMgr::createInstance` -> `WPADInit`-side code (`0x801F9E10`, `0x801F8E50`) and spins:
-  the input hooks (`runtime/src/hle/input`) are not ported. Nothing is drawn yet.
-- **Open PRs**: `port-gx-init` (119 GX hooks, GX statics per profile in `gx_layout.h`).
+- **M2 in progress (#16, first launch)**: the executable starts and passes `OSInit`, DVD, VI, GXInit and the
+  Wii Remote/KPAD start-up. Hooked at SMNE01 addresses: OS (about 55), DVD, VI, 119 GX, WPAD/KPAD
+  (`profiles/smne01/input_hooks.cpp`). Evidence and confidence per address: `docs/nsmbw/hle-hooks.md` and
+  `docs/nsmbw/os-layout.md`.
+- **Current stop**: a null virtual call in `EGG::TextureBuffer::initialize` (`0x802D3490`, called from the
+  game's init `0x800E48D0`): `operator new(60)` returns NULL because the current EGG heap is NULL, because
+  the game heaps (5 MiB, 9.5 MiB, ...) cannot be created. Cause: the arena is seeded to start at
+  `0x80C00000` (`kBootMem1ArenaLo`) to protect the four pre-linked REL modules at `0x80768500..0x80B8E000`,
+  which leaves 12 MiB where the real game has about 20 MiB.
+- **Open PRs**: `port-input` (input hooks).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -89,13 +91,18 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **Input hooks** (MKW `runtime/src/hle/input/wpad.cpp`, `kpad.cpp`, `pad.cpp`): the spin is in the
-   Wii Remote library. Find `WPADInit` and the KPAD entry points by order and size from `0x801F8E50`.
+1. **Module loading and arena (blocking)**: `generate-data-init` writes the four REL images at their load
+   addresses at start-up (`Loaded d_...NP ... @ 0x...` on stdout) and `kBootMem1ArenaLo` is `0x80C00000` so
+   `OSInit`'s `ClearArena` does not wipe them. The game's own heap creation then runs out of room. Options:
+   let the game load the RELs itself (the DVD HLE serves the disc files; OSLink is translated code; not tried yet) and restore
+   the arena to its natural start (`0` in `os_layout.h` skips the seed), or keep the images and seed
+   them after `ClearArena` while keeping them out of the heap. The real run allocates them inside the game
+   heap at those very addresses, so letting the game load them is the faithful route.
 2. **IOS hooks** (MKW `runtime/src/hle/ios.cpp`, `nand_isfs.cpp`): `IOS_Open/Close/Read/Write/Seek/Ioctl/
    Ioctlv` and Async forms near `0x80224xxx`-`0x80226xxx`; NAND has MKW `r13` offsets to parametrize.
 3. Audio (AI/DSP/AX hooks, MKW `0x80123F88`-`0x8015D57C` in `runtime/src/hle/audio`).
-4. Module loading: the runtime pre-places the four REL modules and the arena starts at `0x80C00000` to
-   protect them. Replace with the game's own loading (M3) and restore the arena.
+4. GameCube pad (`PADInit`/`PADRead`, MKW `runtime/src/hle/input/pad.cpp`) when the game reaches it;
+   `WPADGetDpdSensitivity`, `KPADGetUnifiedWpadStatus`; check the KPADStatus layout the game reads.
 5. Determinism audit (#15): `mftb`/`OSGetTime` read the host clock.
 6. M2 exit: first frame on screen, stable main loop.
 
