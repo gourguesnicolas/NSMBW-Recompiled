@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-14 (PR #61 open).
+Last updated: 2026-10-14 (PR #61 merged; DVD hooks in review).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 40,958 functions in strict mode; the executable compiles and
@@ -60,10 +60,10 @@ Last updated: 2026-10-14 (PR #61 open).
   addresses: threads, mutexes, messages, contexts, interrupts and masks, EXI, SI, STM, memory protection,
   reset code, IPC client, audio start-up, alarms (about 55 hooks). Evidence and confidence per address:
   `docs/nsmbw/hle-hooks.md` and `docs/nsmbw/os-layout.md`.
-- **Current stop**: the game's own DVD/IOS code asserts in the request ring at `0x801D3700` because the DVD
-  and IOS hooks are not ported yet. Nothing is drawn; no game code beyond the SDK start-up has run.
-- **Open PRs**: #61 `first-boot` (entry address and boot values per profile, the hooks above). CI fix for
-  macOS pushed; waiting for the checks and for the user to merge.
+- **Current stop**: the DVD hooks work (the disc is indexed: 1189 files) and the game reaches its own
+  `main` (`0x800C9F90`). It then reads the VI DTV status (`0xCC00206E`) from `0x801B00F0` because the
+  VI hooks are not ported. Nothing is drawn.
+- **Open PRs**: `port-dvd-ios` (DVD hooks per profile: `DVDInit`, the three reads, `DVDLowInit`).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -87,17 +87,18 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **DVD + IOS hooks** (PR next): MKW `runtime/src/hle/storage/dvd.cpp` (`DVDInit`, `DVDRead*`, `DVDLow*`)
-   and `runtime/src/hle/ios.cpp` (`IOS_Open/Close/Read/Write/Seek/Ioctl/Ioctlv` and the Async forms).
-   Known SMNE01 addresses: `DVDReadAsyncPrio 0x801CAA30`, `DVDReadPrio 0x801CAB20`,
-   `DVDReadAbsAsyncPrio 0x801CECC0`; IOS code is around `0x80224xxx`-`0x80226xxx`. The NAND code in
-   `runtime/src/hle/storage/nand_isfs.cpp` has MKW `r13` offsets to parametrize (`kIpcBufferLoSda1Offset`).
-2. Audio (AI/DSP/AX hooks, MKW `0x80123F88`-`0x8015D57C` in `runtime/src/hle/audio`), VI (addresses in
-   `hle-hooks.md`), then GX (about 330 hooks; GX is also inlined into 46 game functions).
-3. Module loading: the runtime pre-places the four REL modules and the arena starts at `0x80C00000` to
+1. **VI hooks** (MKW `runtime/src/hle/vi.cpp`, about 17 hooks, addresses in `hle-hooks.md`): `VIInit`
+   `0x801BC7A0`, `__VIInit` `0x801BC5A0`, `VIConfigure` `0x801BD280`, `VIFlush` `0x801BDCB0`,
+   `VISetNextFrameBuffer` `0x801BDDD0`, `VIWaitForRetrace` `0x801BCCF0`, ... The file keeps MKW statics
+   (`kVi*Addr`, `kEggSSystemAddr`) that must move into the profile layout.
+2. **IOS hooks** (MKW `runtime/src/hle/ios.cpp`, `nand_isfs.cpp`): `IOS_Open/Close/Read/Write/Seek/Ioctl/
+   Ioctlv` and Async forms near `0x80224xxx`-`0x80226xxx`; NAND has MKW `r13` offsets to parametrize.
+3. Audio (AI/DSP/AX hooks, MKW `0x80123F88`-`0x8015D57C` in `runtime/src/hle/audio`), then GX (about 330
+   hooks; GX is also inlined into 46 game functions).
+4. Module loading: the runtime pre-places the four REL modules and the arena starts at `0x80C00000` to
    protect them. Replace with the game's own loading (M3) and restore the arena.
-4. Determinism audit (#15): `mftb`/`OSGetTime` read the host clock.
-5. M2 exit: first frame on screen, stable main loop.
+5. Determinism audit (#15): `mftb`/`OSGetTime` read the host clock.
+6. M2 exit: first frame on screen, stable main loop.
 
 ### Do not forget
 - Remove nothing from the MKW profile; keep `allow_unsupported_instructions: false`.

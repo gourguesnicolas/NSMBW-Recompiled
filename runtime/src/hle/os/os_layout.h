@@ -55,6 +55,23 @@ constexpr uint32_t kGuestOsTimeHelper = 0x801B6020u;     // called by OSSetPerio
 constexpr uint32_t kGuestIpcInit = 0x802242A0u;         // IPCInit, called by IPCCltInit (0x802247D0)
 constexpr uint32_t kIpcBufferLoOffsetFromR13 = 19164u;  // IPC buffer low, then high at -19160
 
+// DVD driver statics (DVD.c, dvdlow.c) that the DVD HLE keeps consistent because it replaces DVDInit.
+// A zero address skips the step. The cancel/reset flags of Mario Kart Wii are not located here yet.
+constexpr uint32_t kDvdWaitingQueueBase = 0x803958B0u;       // DVDQueueInit: four queues of 8 bytes
+constexpr uint32_t kDvdContextBase = 0x80395BE0u;            // four 0x20 byte request records
+constexpr uint32_t kDvdInitFlagAddr = 0x8042A95Cu;           // r13 - 19748, a word: DVDInit already ran
+constexpr uint32_t kDvdContextsInitFlagAddr = 0x8042AA14u;   // r13 - 19596, a byte
+constexpr uint32_t kDvdLowInitFlagAddr = 0x8042AA15u;        // r13 - 19595, a byte
+constexpr uint32_t kDvdContextIndexAddr = 0x8042AA10u;       // r13 - 19600
+constexpr uint32_t kDvdCancelingAddr = 0u;
+constexpr uint32_t kDvdResumeFromHereAddr = 0u;
+constexpr uint32_t kDvdPausingFlagAddr = 0u;
+constexpr uint32_t kDvdCancelAllSyncAddr = 0u;
+constexpr uint32_t kDvdPrepareResetAddr = 0u;
+constexpr uint32_t kDvdExecutingAddr = 0u;
+constexpr uint32_t kGuestDvdFsInit = 0x801CA650u;            // DVDFsInit, inlined into DVDInit as well
+constexpr bool kDvdInitFlagIsWord = true;
+
 // Mario Kart Wii only: these two tweaks matched its THP decoder threads and its scheduler start-up.
 // A zero address makes the code that reads them skip the step.
 constexpr uint32_t kSchedulerInitFlagAddr = 0u;
@@ -62,6 +79,21 @@ constexpr uint32_t kThreadAttrSourceAddr = 0u;
 constexpr bool kHasThpDecoderThreads = false;
 
 #else // Mario Kart Wii
+
+constexpr uint32_t kDvdWaitingQueueBase = 0x80343230u;
+constexpr uint32_t kDvdContextBase = 0x803434E0u;
+constexpr uint32_t kDvdInitFlagAddr = 0x803866A0u;
+constexpr uint32_t kDvdContextsInitFlagAddr = 0x80386724u;
+constexpr uint32_t kDvdLowInitFlagAddr = 0x80386725u;
+constexpr uint32_t kDvdContextIndexAddr = 0x80386720u;
+constexpr uint32_t kDvdCancelingAddr = 0x80386664u;
+constexpr uint32_t kDvdResumeFromHereAddr = 0x80386668u;
+constexpr uint32_t kDvdPausingFlagAddr = 0x80386670u;
+constexpr uint32_t kDvdCancelAllSyncAddr = 0x8038667Cu;
+constexpr uint32_t kDvdPrepareResetAddr = 0x803866A8u;
+constexpr uint32_t kDvdExecutingAddr = 0x803866F0u;
+constexpr uint32_t kGuestDvdFsInit = 0x8015DF1Cu;
+constexpr bool kDvdInitFlagIsWord = false;
 
 constexpr uint32_t kInterruptHandlerTablePtrAddr = 0x803868f8u;
 

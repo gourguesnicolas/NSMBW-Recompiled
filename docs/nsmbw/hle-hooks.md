@@ -110,6 +110,22 @@ These ran as translated code and stopped on a hardware register during `OSInit`.
 Not hooked, found on the way: `OSReport` is `0x8015F730` (varargs wrapper), the `OSInit` banner and its
 version checks sit at `0x801AA800`.
 
+## DVD (`DVD.c`, `dvdlow.c`), registered in `profiles/smne01/dvd_hooks.cpp` (#16)
+
+| SDK function | Mario Kart Wii | SMNE01 rev 2 | Confidence | Evidence |
+| --- | --- | --- | --- | --- |
+| `DVDInit` | `0x8015EA1C` | `0x801CAD30` | high | community symbol; builds the four waiting queues, inlines `DVDFsInit`, ends with the disc ID copy |
+| `DVDReadAsyncPrio` | `0x8015E74C` | `0x801CAA30` | high | see the table above |
+| `DVDReadPrio` | `0x8015E834` | `0x801CAB20` | high | see the table above |
+| `DVDReadAbsAsyncPrio` | `0x801628CC` | `0x801CECC0` | high | see the table above |
+| `DVDLowInit` | `0x80164848` | `0x801D1230` | high | called by `DVDInit`; calls `IPCCltInit` and opens `/dev/di` through IOS |
+
+`DVDFsInit` is `0x801CA650` (inlined into `DVDInit`, also a function of its own). The DVD request records
+are 0x20 bytes at `0x80395BE0`, the waiting queues at `0x803958B0`. The other `DVDLow*` functions
+(`0x801D14A0`..`0x801D3700`, each one an IOS ioctl wrapper with its own command code, `Inquiry` is the
+one writing `0x12`) are not hooked: they are only reached from the drive state machine that `DVDInit` no
+longer starts.
+
 ## Not found, or no counterpart
 
 - `OS__SleepTicks`: no function calls both `OSSetAlarm` and `OSSleepThread`; probably inlined.
