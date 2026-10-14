@@ -167,6 +167,32 @@ objects right after it (`0x80390200`, `0x80390224`), the display-list FIFO `0x80
 `GXBeginDisplayList`), and the small-data flags and thread queues at `r13 - 19912..-19872`, found by their
 distance to each other and confirmed in `GXInit`, `__GXFifoInit` and `GXDrawDone`.
 
+## Wii Remote and KPAD, registered in `profiles/smne01/input_hooks.cpp` (#16)
+
+The Wii Remote library is split differently here: the public WPAD calls are thin wrappers
+(`0x801DFAC0`..`0x801DFB30`) over a global control block at `0x803A3120`, and the per-channel calls
+(`0x801E0F40`..`0x801E1630`) look the channel's block up in a pointer table at `0x8039E230`.
+Identified by what they read and write and by the library's own warning strings
+("Please call KPADSetConnectCallback instead of WPADSetConnectCallback"):
+
+- `0x801DF7F0` WPADInit (control blocks, sensor bar settings, and the sensor bar power bit in the
+  Hollywood GPIO register `0xCD0000C0`, which is why it has to be replaced); `0x801DFA50` is its public
+  entry (registers the library version, calls `0x801F3190`, then this);
+- `0x801F9E10` Bluetooth stack start-up: it sleeps until the predicate at `0x801FCF30` (state == 5) is true;
+- `0x801DFAC0` start simple sync, `0x801DFAD0` stop simple sync, `0x801DFAF0` set sync-device callback
+  (swaps the word at `+4`, returns the old one), `0x801DFB30` library status (signed byte at `+1800`);
+- `0x801E0F40` WPADProbe (writes the device type byte at `+2241` of the channel block, status at `+2236`),
+  `0x801E1150` GetDataFormat, `0x801E11A0` SetDataFormat, `0x801E12C0` GetInfoAsync (stores the callback at
+  `+2440`), `0x801E14E0` ControlMotor, `0x801E1630` ControlLed (by position: it follows the motor-enable
+  helpers `0x801E15B0`/`0x801E15F0`, as in Mario Kart Wii);
+- KPAD: `0x801ED3A0` KPADRead and `0x801ED3B0` KPADReadEx are two entries into `0x801ED3C0`
+  (`r6` = error word pointer, `r7` = "extended"); the hooks fill entry 0 from the host controller and the
+  Ex form also writes the error word. KPAD's channel blocks are 1400 bytes each at `0x803A1AC8`.
+
+Not hooked yet: `WPADGetDpdSensitivity`, `KPADGetUnifiedWpadStatus` (not called by the game's EGG code
+that was read), the second simple-sync entry `0x801DFAE0`, and the GameCube pad calls (`PADInit` and
+friends: not reached so far).
+
 ## Not found, or no counterpart
 
 - `OS__SleepTicks`: no function calls both `OSSetAlarm` and `OSSleepThread`; probably inlined.
