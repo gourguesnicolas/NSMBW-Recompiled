@@ -193,6 +193,20 @@ Not hooked yet: `WPADGetDpdSensitivity`, `KPADGetUnifiedWpadStatus` (not called 
 that was read), the second simple-sync entry `0x801DFAE0`, and the GameCube pad calls (`PADInit` and
 friends: not reached so far).
 
+## Audio interface, DSP and AX task, registered in `profiles/smne01/audio_hooks.cpp` (#16)
+
+Same implementations as Mario Kart Wii; the statics are per game (`audio.cpp`, `ax_internal.h`).
+
+- AI (`0x8019F0B0`..`0x8019F1F0`): RegisterDMACallback `0x8019F0B0` (swaps `r13 - 20880`), InitDMA `0x8019F100`,
+  StartDMA `0x8019F180`, BytesLeft `0x8019F1A0`, StartAddr `0x8019F1B0`, Length `0x8019F1D0`, CheckInit
+  `0x8019F1E0` (`r13 - 20936`), Init `0x8019F1F0`. Same order and register offsets as the MKW functions.
+- DSP (`0x801D56E0`..`0x801D5F70`): mail check/read/send `0x801D56E0/56F0/5700/5720`, DSPInit `0x801D5740`,
+  CheckInit `0x801D5800` (`r13 - 19560`), AddTask `0x801D5810`, AssertTask `0x801D5880`, boot task `0x801D5F70`
+  (same distance after AssertTask as in MKW). The driver statics keep their MKW distances from CheckInit's word.
+- `__AXOutInitDSP` `0x801A1CE0`: fills the AX task at `0x8037CD00` (callbacks `0x801A1C50/1C60/1CC0/1CD0`,
+  DRAM length 64, DSP address 3282: identical to MKW, so the same ucode).
+- Not found: `AIGetDSPSampleRate`, the AXFX reverb callback.
+
 ## Not found, or no counterpart
 
 - `OS__SleepTicks`: no function calls both `OSSetAlarm` and `OSSleepThread`; probably inlined.

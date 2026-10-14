@@ -31,21 +31,55 @@ constexpr uint32_t kMailReset = kTaskMailToDsp | 0x0002u;
 constexpr size_t kResamplingCoefficientCount = 0x800;
 constexpr uint32_t kMailContinue = kTaskMailToDsp | 0x0003u;
 constexpr uint32_t kAxSamplesPerFrame = 96u;
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+// New Super Mario Bros. Wii. The task and the two buffers are the ones __AXOutInitDSP (0x801A1CE0) fills;
+// the DSP driver statics sit at r13 - 19560 (DSPCheckInit, 0x801D5800) and keep their distances.
+constexpr uint32_t kAxDspTaskAddr = 0x8037CD00u;
+constexpr uint32_t kDspInitializedAddr = 0x8042AA18u;
+constexpr uint32_t kDspAssertPendingAddr = 0x8042AA20u;
+constexpr uint32_t kDspAssertTaskAddr = 0x8042AA24u;
+constexpr uint32_t kDspAuxAddr = 0x8042AA28u;
+constexpr uint32_t kDspCurrentTaskAddr = 0x8042AA2Cu;
+constexpr uint32_t kDspFirstTaskAddr = 0x8042AA30u;
+constexpr uint32_t kDspRunningTaskAddr = 0x8042AA34u;
+constexpr uint32_t kAxIramMmemAddr = 0x8032F400u;
+constexpr uint32_t kAxDramMmemAddr = 0x8037CD60u;
+// r13-relative words __AXOutInitDSP reads into the task, and the two flags it clears.
+constexpr uint32_t kAxTaskIramLengthFromR13 = 0x61C4u;
+constexpr uint32_t kAxTaskField24FromR13 = 0x61C8u;
+constexpr uint32_t kAxTaskField26FromR13 = 0x61C6u;
+constexpr uint32_t kAxFlagFromR13 = 0x50E0u;
+constexpr uint32_t kAxFlag2FromR13 = 0x50E4u;
+#else
 constexpr uint32_t kAxDspTaskAddr = 0x802F81A0u;
 constexpr uint32_t kDspInitializedAddr = 0x80386608u;
 constexpr uint32_t kDspAssertPendingAddr = 0x80386610u;
 constexpr uint32_t kDspAssertTaskAddr = 0x80386614u;
+constexpr uint32_t kDspAuxAddr = 0x80386618u;
 constexpr uint32_t kDspCurrentTaskAddr = 0x8038661Cu;
 constexpr uint32_t kDspFirstTaskAddr = 0x80386620u;
 constexpr uint32_t kDspRunningTaskAddr = 0x80386624u;
 constexpr uint32_t kAxIramMmemAddr = 0x8027F820u;
 constexpr uint32_t kAxDramMmemAddr = 0x802F8200u;
+constexpr uint32_t kAxTaskIramLengthFromR13 = 0x73FCu;
+constexpr uint32_t kAxTaskField24FromR13 = 0x7400u;
+constexpr uint32_t kAxTaskField26FromR13 = 0x73FEu;
+constexpr uint32_t kAxFlagFromR13 = 0x66D8u;
+constexpr uint32_t kAxFlag2FromR13 = 0x66DCu;
+#endif
 constexpr uint32_t kAxDramLength = 64u;
 constexpr uint32_t kAxDramDspAddr = 3282u;
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+constexpr uint32_t kAxInitCallback = 0x801A1C50u;
+constexpr uint32_t kAxResumeCallback = 0x801A1C60u;
+constexpr uint32_t kAxDoneCallback = 0x801A1CC0u;
+constexpr uint32_t kAxRequestCallback = 0x801A1CD0u;
+#else
 constexpr uint32_t kAxInitCallback = 0x80126948u;
 constexpr uint32_t kAxResumeCallback = 0x80126954u;
 constexpr uint32_t kAxDoneCallback = 0x801269A8u;
 constexpr uint32_t kAxRequestCallback = 0x801269B8u;
+#endif
 
 extern uint32_t g_axTaskPtr;
 

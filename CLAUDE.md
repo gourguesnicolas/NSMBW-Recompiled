@@ -50,22 +50,22 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-14 (PR #65 merged; module loading by the game in review).
+Last updated: 2026-10-14 (PR #66 open; audio hooks and function discovery in review).
 
 ### Where we are
-- **M0 done. M1 done**: the translator reaches 40,958 functions in strict mode; the executable compiles and
+- **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
   links (#13). `runtime.native_hooks: false` keeps the Mario Kart Wii (MKW) hooks off; this game's hooks live
   in `runtime/src/hle/profiles/smne01` (profile `smne01`, selected by `runtime.hook_profile`).
-- **M2 in progress (#16, first launch)**: the executable starts and passes `OSInit`, DVD, VI, GXInit and the
-  Wii Remote/KPAD start-up. Hooked at SMNE01 addresses: OS (about 55), DVD, VI, 119 GX, WPAD/KPAD
-  (`profiles/smne01/input_hooks.cpp`). Evidence and confidence per address: `docs/nsmbw/hle-hooks.md` and
-  `docs/nsmbw/os-layout.md`.
-- **Current stop**: `dAudio::init` (`0x80069790`) reaches the audio interface: MMIO read at `0xCD006C00`
-  (AI/DSP) from `0x80194B90`. Next: the audio hooks (AI/DSP/AX, MKW `runtime/src/hle/audio`).
-  Passed since the input hooks: the game heaps (arena restored, REL images no longer embedded), the ROM font
-  read (`__OSReadROM` returns zeros; `OSGetFontEncode` is hooked so it is not inlined and answers ANSI),
-  `EXILock` (always granted, because `EXIUnlock` is a stub).
-- **Open PRs**: `port-modules` (module loading by the game, font, EXILock).
+- **M2 in progress (#16, first launch)**: the executable passes `OSInit`, DVD, VI, GXInit, the Wii Remote/KPAD
+  start-up, the ROM font, the audio set-up (AI, DSP, AX task) and the game loads its own REL modules from the
+  disc (`d_basesNP__prolog` ran at the manifest address). It now runs without a crash: after about 20 s the
+  hang dumps show the main thread inside `0x800E4E40` -> `0x800E46E0` (the game's frame/scene loop) and
+  the AX/DSP mix thread running. Nothing is drawn yet; whether the loop is waiting (VI retrace, NAND, an
+  IOS call) or running is not established.
+- **Function discovery**: `scripts/coverage.py` now also counts `lis`/`addi` relocations (ADDR16_HA/LO) as
+  function pointers: a constructor passed to `__construct_array` was a function start no call reached
+  (190 new starts in `MAP.txt`).
+- **Open PRs**: `port-modules` (#66), `port-audio` (audio hooks + discovery).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -91,14 +91,13 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **Audio hooks** (AI/DSP/AX, MKW `0x80123F88`-`0x8015D57C` in `runtime/src/hle/audio`; `dAudio::init`
-   is where the run stops). The REL loading by the game itself is not reached yet: when it is, check the
-   modules land at the manifest addresses (`0x80768500...`), since the translated code is fixed there.
+1. **Find what the main loop waits for**: sample with `MKW_HANG_DUMP_SECONDS`, then look for the first VI
+   retrace wait, the first IOS/NAND call (`IOS_Open`, `/shared2`), or a thread blocked on a message queue.
 2. **IOS hooks** (MKW `runtime/src/hle/ios.cpp`, `nand_isfs.cpp`): `IOS_Open/Close/Read/Write/Seek/Ioctl/
    Ioctlv` and Async forms near `0x80224xxx`-`0x80226xxx`; NAND has MKW `r13` offsets to parametrize.
-3. (Audio is step 1.)
-4. GameCube pad (`PADInit`/`PADRead`, MKW `runtime/src/hle/input/pad.cpp`) when the game reaches it;
-   `WPADGetDpdSensitivity`, `KPADGetUnifiedWpadStatus`; check the KPADStatus layout the game reads.
+3. First frame: check the GX path draws (nothing validated on screen yet), VI retrace callbacks.
+4. GameCube pad (`PADInit`/`PADRead`), `WPADGetDpdSensitivity`, `KPADGetUnifiedWpadStatus`, the KPADStatus
+   layout the game reads; the AXFX reverb callback and `AIGetDSPSampleRate` were not located.
 5. Determinism audit (#15): `mftb`/`OSGetTime` read the host clock.
 6. M2 exit: first frame on screen, stable main loop.
 

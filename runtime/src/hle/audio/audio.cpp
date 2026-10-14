@@ -21,10 +21,19 @@ namespace {
 constexpr uint32_t kDefaultSampleRate = 32000u;
 constexpr uint32_t kAudioChannels = 2u;
 constexpr uint32_t kBytesPerSample = 2u;
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+// New Super Mario Bros. Wii: r13 - 20936 (read by AICheckInit, 0x8019F1E0) and r13 - 20880 (swapped by
+// AIRegisterDMACallback, 0x8019F0B0); the other two keep their distance from them.
+constexpr uint32_t kAIInitializedAddr = 0x8042A4B8u;
+constexpr uint32_t kAICallbackBusyAddr = 0x8042A4BCu;
+constexpr uint32_t kAICallbackStackSwitchAddr = 0x8042A4ECu;
+constexpr uint32_t kAIDmaCallbackAddr = 0x8042A4F0u;
+#else
 constexpr uint32_t kAIInitializedAddr = 0x80386448u;
 constexpr uint32_t kAICallbackBusyAddr = 0x8038644Cu;
 constexpr uint32_t kAICallbackStackSwitchAddr = 0x8038647Cu;
 constexpr uint32_t kAIDmaCallbackAddr = 0x80386480u;
+#endif
 
 // Max completed 3 ms DMA blocks delivered per tick. Draining several at once catches up
 // backlog from a long frame without letting a large stall spiral into an unbounded loop.
