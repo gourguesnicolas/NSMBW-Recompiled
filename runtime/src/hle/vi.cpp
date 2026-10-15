@@ -804,14 +804,26 @@ extern "C" void VIFlush_HLE_801ba9a4(CpuContext* ctx)
 }
 PPC_NATIVE_OVERRIDE_VOID(801BA9A4, VIFlush_HLE_801ba9a4, (CpuContext* ctx), (ctx));
 
+extern "C" uint32_t GxBeginCountForTrace();
+
 extern "C" void VISetNextFrameBuffer_HLE_801baab8(CpuContext* ctx)
 {
     const uint32_t fbPtr = ctx ? ctx->gpr[3] : 0;
     // MKW_TRACE_VI=1 prints a line every 60 frame-buffer submissions: whether the game presents frames.
     static const bool traceFrames = std::getenv("MKW_TRACE_VI") != nullptr;
     static uint32_t frameCount = 0;
-    if (traceFrames && (++frameCount % 60u) == 1u) {
-        std::fprintf(stderr, "[vi] frame buffer submission %u: 0x%08X\n", frameCount, fbPtr);
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+    // Mario Kart Wii releases the opaque start-up screen when its strap scene accepts input (see
+    // strap_scene.cpp). This game has no such hook yet, so the screen is released once the game has been
+    // presenting frames for a moment.
+    if (frameCount == 30u) {
+        settings_overlay::NotifyStrapInputAccepted();
+    }
+#endif
+    ++frameCount;
+    if (traceFrames && (frameCount % 60u) == 1u) {
+        std::fprintf(stderr, "[vi] frame buffer submission %u: 0x%08X, GXBegin calls so far %u\n",
+                     frameCount, fbPtr, GxBeginCountForTrace());
     }
     {
         std::lock_guard<std::mutex> lock(g_viMutex);
