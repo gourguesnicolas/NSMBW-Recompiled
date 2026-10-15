@@ -56,10 +56,10 @@ Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, 
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
   links (#13). `runtime.native_hooks: false` keeps the Mario Kart Wii (MKW) hooks off; this game's hooks live
   in `runtime/src/hle/profiles/smne01` (profile `smne01`, selected by `runtime.hook_profile`).
-- **M2 nearly done (#16, first launch)**: the game boots, draws the strap screen and the save dialog, accepts
-  input, and runs on to the opening title scene (it reads `US/Layout/openingTitle.arc`, the title music
-  `Sound/stream/title_lr.ry.32.brstm`, the player models, then runs the title at 60 fps with about 1,000
-  `GXBegin` per frame). **The title screen is black**, and the music is reported missing by the user.
+- **M2 nearly done (#16, first launch)**: the game boots, accepts input, and **reaches the "Select a File" screen
+  with its 3D-lit background drawn** (screenshot, 60 fps). Before the GX fixes below only part of the picture
+  showed. The remaining visible issues are not catalogued yet: look at the title, the file select, the world map
+  and a level, and compare with the real game.
 - **Input**: a real Wii Remote is used when paired (SDL HIDAPI). Otherwise
   `runtime/src/hle/input/gamepad_as_remote.cpp` makes a virtual remote held sideways: arrows or D-pad/stick
   move, Space or X (pad A) = "2" (jump), Left Shift or Z (pad B) = "1" (run), Enter = A, Backspace = B,
@@ -70,17 +70,23 @@ Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, 
   the title starts, then loud (peaks 3,000-32,768; some clipping). So the music is mixed. Whether it is
   correct, and whether it reaches the speakers, is not established: nobody has listened. Check the device
   and the sample format before blaming the mix.
-- **GX hook mistakes found so far**: `0x801C7260` is `GXGetTexObjLODAll` (it had been registered as
-  `GetTexObjAll`, and `0x801C7340`, a 16-byte getter, as LODAll, so the game read garbage and crashed in
-  `GXInitTexObjLOD`). The 119 GX hooks were aligned by order and size; others may be wrong. The size ratio
-  against the Mario Kart Wii function is a cheap check (a 600-byte function mapped to a 16-byte one is wrong
-  unless it is a jump-table fragment).
+- **GX hook mistakes found and fixed** (the 119 hooks were aligned by order and size, which goes wrong where
+  the two SDK builds have different functions between two hooked ones): `GXGetTexObjLODAll` was on the wrong
+  function (crash); `GXSetCopyClamp` was on `GXGetYScaleFactor` (`0x801C5BC0`, real `0x801C5B00`);
+  `GXClearBoundingBox` was on `GXInitLightSpot` (real `0x801C63F0`); `GXInitTexObjUserData` was on
+  `GXGetTexObjMipMap` (real `0x801C7160`); `GXLoadTlut` was on `GXInitTexCacheRegion` (real `0x801C7550`);
+  `GXSetDither`/`GXSetDstAlpha` were one function late (real `0x801C8F90`/`0x801C8FC0`); a switch-artifact
+  `GXSetArray` entry replaced a getter; `GXInitTexObjLODBias` does not exist in this SDK; `GXGetTexObjAll` is
+  at `0x801C7180`. How they were found: compare the distance between two consecutive hooks with the distance
+  between their Mario Kart Wii counterparts, then read the body (BP register id, `gd+offset`, argument use).
+  Still unaudited by body: the vertex-attribute group (`0x801C37C0`-`0x801C4780`), FIFO group, TEV group,
+  transform group. They fit the distance check, which is not proof.
 - **Startup screen**: the runtime covers the game with an opaque black "WiiCompiled" screen until
   `settings_overlay::NotifyStrapInputAccepted()`; for SMNE01 `vi.cpp` calls it after 30 presented frames
   (stand-in for MKW's strap-scene hook).
 - **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
   NAND (SC getters other than aspect ratio return defaults).
-- **Open PRs**: #69 (startup screen) and `input-gx-fixes` (virtual remote, LODAll fix, traces).
+- **Open PRs**: #70 (virtual remote, LODAll fix, traces) and `gx-hook-audit` (the GX fixes above).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -111,10 +117,8 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **Black title screen**: the title scene runs (music mixes, 1,000 draws per frame) but nothing shows. Find
-   out why: wrong GX hooks used by the 3D/title path (audit the 119 against bodies, starting with TEV,
-   blend/Z/alpha-compare, cull, viewport/scissor, display lists `GXCallDisplayList`), a fade that never opens,
-   or an EFB copy problem. A per-frame trace of the GX calls (name and arguments) would settle it.
+1. **Check the picture** on the title, file select, world map and a level against the real game; audit the
+   remaining GX hooks by body (list above).
 2. **Music**: listen, then check the audio backend output path and the sample format if it is noise or silent.
 3. **Fill the missing console data**: `play_rec.dat`, `SYSCONF`, `/dev/es` ioctls 29 and 27.
 4. Faithful strap-scene hook; GameCube pad when reached.
