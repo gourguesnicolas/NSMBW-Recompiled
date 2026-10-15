@@ -94,7 +94,7 @@ Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, 
   (stand-in for MKW's strap-scene hook).
 - **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
   NAND (SC getters other than aspect ratio return defaults).
-- **Open PRs**: #71 (GX hook fixes, cache hooks, MKW-address removal).
+- **Open PRs**: #72 (cache hooks, MKW-address removal, GX traces).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
