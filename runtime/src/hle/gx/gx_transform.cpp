@@ -38,6 +38,8 @@ namespace {
 // Viewport and scissor go to aurora in guest EFB coordinates, mapped to the active render target
 // exactly once inside gx::map_logical_viewport/map_logical_scissor. A prior VI origin/scale
 // transform double-transformed menu viewports and broke 640x480 overscan, so it was removed.
+extern "C" bool GxTraceFrame();
+extern "C" void GxTraceEvent(const char* format, ...);
 extern "C" void GX__SetViewportJitter_80173378(float l, float t, float w, float h, float nz, float fz, uint32_t f) {
     g_viewportState[0]=l; g_viewportState[1]=t; g_viewportState[2]=w; g_viewportState[3]=h; g_viewportState[4]=nz; g_viewportState[5]=fz;
     GXSetViewportJitter(l, t, w, h, nz, fz, f);
@@ -45,6 +47,7 @@ extern "C" void GX__SetViewportJitter_80173378(float l, float t, float w, float 
 PPC_NATIVE_OVERRIDE_VOID(80173378, GX__SetViewportJitter_80173378, (float l, float t, float w, float h, float nz, float fz, uint32_t f), (l, t, w, h, nz, fz, f));
 
 extern "C" void GX__SetViewport_801733b4(float l, float t, float w, float h, float nz, float fz) {
+    if (GxTraceFrame()) GxTraceEvent("SetViewport %.1f %.1f %.1f %.1f z %.3f..%.3f", l, t, w, h, nz, fz);
     g_viewportState[0]=l; g_viewportState[1]=t; g_viewportState[2]=w; g_viewportState[3]=h; g_viewportState[4]=nz; g_viewportState[5]=fz;
     GXSetViewport(l, t, w, h, nz, fz);
 }
@@ -93,6 +96,7 @@ PPC_NATIVE_OVERRIDE_VOID(801734e0, GX__SetScissorBoxOffset_801734e0, (int32_t xo
 // ============================================================================
 
 extern "C" void GX__SetScissor_80173430(uint32_t l, uint32_t t, uint32_t w, uint32_t h) {
+    if (GxTraceFrame()) GxTraceEvent("SetScissor %u %u %u %u", l, t, w, h);
     g_scissorLeft=(int32_t)l; g_scissorTop=(int32_t)t; g_scissorWidth=(int32_t)w; g_scissorHeight=(int32_t)h;
     try { uint32_t gd=Memory::Read32(kGXDataPtrAddr); if(gd){
         uint32_t r148=Memory::Read32(gd+0x148), r14c=Memory::Read32(gd+0x14c);
@@ -115,6 +119,7 @@ PPC_NATIVE_OVERRIDE_VOID(80173430, GX__SetScissor_80173430, (uint32_t l, uint32_
 extern "C" void GX__SetProjection_8017301c(uint32_t ma, uint32_t pt) {
     const uint32_t* raw=(const uint32_t*)GuestToHostPtr(ma, 64); float m[16];
     SwapBeF32ArrayToHost(raw, m, 16);
+    if (GxTraceFrame()) GxTraceEvent("SetProjection type %u diag %.4f %.4f %.4f %.4f  m2 %.4f m6 %.4f m10 %.4f m11 %.4f", pt, m[0], m[5], m[10], m[15], m[2], m[6], m[10], m[11]);
     GXSetProjection(m, (GXProjectionType)pt);
     UpdateProjectionVectorFromMatrix(m, (GXProjectionType)pt);
 }
@@ -124,6 +129,7 @@ extern "C" void GX__SetProjectionv_80173080(uint32_t pa) {
     const uint32_t* raw=(const uint32_t*)GuestToHostPtr(pa, 28); float v[7];
     SwapBeF32ArrayToHost(raw, v, 7);
     GXProjectionType pt=(v[0]!=0.f)?GX_ORTHOGRAPHIC:GX_PERSPECTIVE;
+    if (GxTraceFrame()) GxTraceEvent("SetProjectionv %.4f %.4f %.4f %.4f %.4f %.4f %.4f", v[0], v[1], v[2], v[3], v[4], v[5], v[6]);
     float m[16]={0.f}; m[0]=v[1]; m[5]=v[3]; m[10]=v[5]; m[11]=v[6];
     if(pt==GX_PERSPECTIVE){ m[2]=v[2]; m[6]=v[4]; m[14]=-1.f; } else { m[3]=v[2]; m[7]=v[4]; m[15]=1.f; }
     GXSetProjection(m, pt);
@@ -146,6 +152,13 @@ PPC_NATIVE_OVERRIDE_VOID(801730cc, GX__GetProjectionv_801730cc, (uint32_t pa), (
 extern "C" void GX__LoadPosMtxImm_8017310c(uint32_t ma, uint32_t id) {
     const uint32_t* raw=(const uint32_t*)GuestToHostPtr(ma); float m[12];
     SwapBeF32ArrayToHost(raw, m, 12);
+    if (GxTraceFrame()) {
+        static int traced = 0, lastFrame = -1;
+        if (lastFrame != g_gxFrameCount) { lastFrame = g_gxFrameCount; traced = 0; }
+        if (traced++ < 40) GxTraceEvent("LoadPosMtxImm id %u: [%.3f %.3f %.3f %.3f] [%.3f %.3f %.3f %.3f] [%.3f %.3f %.3f %.3f]", id, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11]);
+    } else {
+        static int dummy = 0; (void)dummy;
+    }
     GXLoadPosMtxImm((float(*)[4])m, id);
 }
 PPC_NATIVE_OVERRIDE_VOID(8017310c, GX__LoadPosMtxImm_8017310c, (uint32_t ma, uint32_t id), (ma, id));

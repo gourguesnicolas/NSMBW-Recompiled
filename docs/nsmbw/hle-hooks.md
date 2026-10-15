@@ -51,6 +51,15 @@ instruction sequence. Confidence: **high** means the code matches the SDK functi
 | `LCQueueWait` | `0x801A1988` | `0x801AC820` | high | reads HID2, compares and loops |
 | `PPCMfhid2` | `0x8012E630` | `0x801A9C70` | high | `mfspr r3,920; blr` |
 
+Registered in `profiles/smne01/cache_hooks.cpp` (they were listed here but not registered until the world map
+stayed empty: nothing performed the locked-cache DMA, so the 3D code read uninitialised matrices):
+`DCEnable` `0x801AC420`, `DCInvalidateRange` `0x801AC440`, `DCFlushRange` `0x801AC470`, `DCStoreRange`
+`0x801AC4A0`, `DCFlushRangeNoSync` `0x801AC4D0`, `DCStoreRangeNoSync` `0x801AC500`, `DCZeroRange`
+`0x801AC530`, `ICInvalidateRange` `0x801AC560`, `ICFlashInvalidate` `0x801AC5A0`, `ICEnable` `0x801AC5B0`,
+`__LCEnable` `0x801AC5D0`, `LCEnable` `0x801AC6A0`, `LCDisable` `0x801AC6E0`, `__OSCacheInit` `0x801AC840`;
+each is at the distance from its neighbours that Mario Kart Wii has. The game also carries its own copies of
+`LCLoadBlocks` and `LCStoreBlocks` at `0x8022B3C0` and `0x8022B3D0`.
+
 ## Alarms (`OSAlarm.c`) and video (`vi.c`)
 
 | SDK function | Mario Kart Wii | SMNE01 rev 2 | Confidence | Evidence |

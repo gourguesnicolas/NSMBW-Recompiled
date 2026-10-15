@@ -56,10 +56,11 @@ Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, 
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
   links (#13). `runtime.native_hooks: false` keeps the Mario Kart Wii (MKW) hooks off; this game's hooks live
   in `runtime/src/hle/profiles/smne01` (profile `smne01`, selected by `runtime.hook_profile`).
-- **M2 nearly done (#16, first launch)**: the game boots, accepts input, and **reaches the "Select a File" screen
-  with its 3D-lit background drawn** (screenshot, 60 fps). Before the GX fixes below only part of the picture
-  showed. The remaining visible issues are not catalogued yet: look at the title, the file select, the world map
-  and a level, and compare with the real game.
+- **M2 nearly done (#16, first launch)**: the game boots, accepts input and **draws the 3D world map**
+  (Peach's castle, Mario, the paths: screenshot, 60 fps), the file select and the level intro. What made the
+  3D scenes empty: the cache hooks were never registered, so the locked-cache DMA (`DMA_U`/`DMA_L`, SPR
+  922/923) was not performed and the 3D code read uninitialised matrices (`profiles/smne01/cache_hooks.cpp`).
+  Not checked yet: the first level, the title screen, enemies and effects.
 - **Input**: a real Wii Remote is used when paired (SDL HIDAPI). Otherwise
   `runtime/src/hle/input/gamepad_as_remote.cpp` makes a virtual remote held sideways: arrows or D-pad/stick
   move, Space or X (pad A) = "2" (jump), Left Shift or Z (pad B) = "1" (run), Enter = A, Backspace = B,
@@ -84,15 +85,16 @@ Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, 
   between their Mario Kart Wii counterparts, then read the body (BP register id, `gd+offset`, argument use).
   Still unaudited by body: the vertex-attribute group (`0x801C37C0`-`0x801C4780`), FIFO group, TEV group,
   transform group. They fit the distance check, which is not proof.
-- **Seen by the user after #71**: the world map shows only its UI (3D models missing), the first level shows
-  its tile atlas as flat pictures at the bottom (tile texture coordinates wrong), sound effects play but not the
-  music. The three vertex-format fixes above target the missing 3D; the tile and music problems are open.
+- **Open after the cache fix**: the level tile atlas shows at the bottom of the picture (the 20 animated-tile
+  textures are rendered into the EFB strip below the visible 456 lines and the display copy is taller than
+  that: the VI/EFB size mirrors `kViRenderHeightAddr` etc. are not located for this game); the music is
+  silent (MKW sound-manager and EGG-screen writes were removed in this PR; not yet re-tested).
 - **Startup screen**: the runtime covers the game with an opaque black "WiiCompiled" screen until
   `settings_overlay::NotifyStrapInputAccepted()`; for SMNE01 `vi.cpp` calls it after 30 presented frames
   (stand-in for MKW's strap-scene hook).
 - **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
   NAND (SC getters other than aspect ratio return defaults).
-- **Open PRs**: #70 (virtual remote, LODAll fix, traces) and `gx-hook-audit` (the GX fixes above).
+- **Open PRs**: #71 (GX hook fixes, cache hooks, MKW-address removal).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -123,8 +125,8 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **Check the picture** on the title, file select, world map and a level against the real game; audit the
-   remaining GX hooks by body (list above).
+1. **Check the picture** on the title and a level against the real game; fix the visible strip (VI size
+   statics); audit the remaining GX hooks by body (list above).
 2. **Music**: listen, then check the audio backend output path and the sample format if it is noise or silent.
 3. **Fill the missing console data**: `play_rec.dat`, `SYSCONF`, `/dev/es` ioctls 29 and 27.
 4. Faithful strap-scene hook; GameCube pad when reached.
@@ -133,6 +135,9 @@ values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there
 6. Determinism audit (#15); M2 exit: the title screen and a level are playable.
 
 ### Do not forget
+- **Mario Kart Wii addresses in shared runtime code**: anything that reads or writes a fixed `0x80xxxxxx`
+  address outside `profiles/` and the `*_layout.h` files is a bug for this game (found so far: dynamic aspect,
+  music attenuation, fiber manager, now guarded or per-game). `grep` for them when something is wrong.
 - Remove nothing from the MKW profile; keep `allow_unsupported_instructions: false`.
 - Never commit anything from `Assets/`, `generated/`, `build/`, or `UserData/`.
 - Open a PR for every change; the user merges.

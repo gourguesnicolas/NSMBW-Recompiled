@@ -10,6 +10,10 @@
 #include <mutex>
 #include <vector>
 
+extern "C" bool GxTraceFrame();
+extern "C" void GxTraceEvent(const char* format, ...);
+extern "C" void GxTraceFlushSequence();
+
 namespace {
 // Copy destinations stay GPU-only until an explicit/lazy readback. Track the
 // guest ranges that own those results so a later data-cache flush over a reused
@@ -112,6 +116,7 @@ PPC_NATIVE_OVERRIDE_VOID(8016fc24, GX__SetDispCopyGamma_8016fc24, (uint32_t g), 
 // ============================================================================
 
 extern "C" void GX__CopyDisp_8016fc38(uint32_t da, uint32_t c) {
+    if (GxTraceFrame()) { GxTraceEvent("CopyDisp xfb 0x%08X clear %u", da, c); GxTraceFlushSequence(); }
     EnsureAuroraFrameActive();
     // GX copies are FIFO-ordered on hardware. Drain submitted draws before
     // resolving the EFB so high-level copies see the same contents.
@@ -135,6 +140,7 @@ PPC_NATIVE_OVERRIDE_VOID(8016fc38, GX__CopyDisp_8016fc38, (uint32_t da, uint32_t
 
 
 extern "C" void GX__CopyTex_8016fd74(uint32_t da, uint32_t c) {
+    if (GxTraceFrame()) GxTraceEvent("CopyTex dst 0x%08X clear %u src %u,%u %ux%u -> %ux%u fmt %u", da, c, g_texCopyState.srcLeft, g_texCopyState.srcTop, g_texCopyState.srcWidth, g_texCopyState.srcHeight, g_texCopyState.dstWidth, g_texCopyState.dstHeight, g_texCopyState.dstFormat);
     EnsureAuroraFrameActive();
     // Match GX FIFO ordering: texture copies observe all prior draws.
     GXDrawDone();
