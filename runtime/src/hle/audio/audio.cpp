@@ -90,6 +90,20 @@ bool PushAudioBlock(uint32_t startAddr, uint32_t length) {
     }
 
     if (src) {
+        // MKW_TRACE_AUDIO=1 prints the loudest sample of every 200 blocks: is the mix silent?
+        static const bool traceAudio = std::getenv("MKW_TRACE_AUDIO") != nullptr;
+        if (traceAudio) {
+            static uint32_t blocks = 0;
+            static int32_t peak = 0;
+            for (uint32_t i = 0; i + 1 < bytes; i += 2) {
+                const int32_t v = static_cast<int16_t>((src[i] << 8) | src[i + 1]);
+                peak = std::max(peak, v < 0 ? -v : v);
+            }
+            if (++blocks % 200u == 0u) {
+                std::fprintf(stderr, "[audio] peak sample over the last 200 blocks: %d\n", peak);
+                peak = 0;
+            }
+        }
         return AudioBackend::Instance().PushWiiAiSamplesBE16(src, bytes);
     }
 
@@ -251,6 +265,12 @@ extern "C" void AIInitDMA_80123fcc(uint32_t start_addr, uint32_t length)
     g_ai.registerStartAddr = EncodeAIDmaStartRegister(start_addr);
     g_ai.length = EncodeAIDmaLengthRegister(length);
     g_ai.bytesLeft = g_ai.length;
+    static bool logged = false;
+    if (!logged) {
+        logged = true;
+        RT_LOG(RT_TAG_AUDIO) << "AIInitDMA: start=0x" << std::hex << start_addr << " length=0x" << length
+                             << std::dec << " (first call; the buffers alternate every frame)" << std::endl;
+    }
 }
 
 PPC_NATIVE_OVERRIDE_VOID(80123fcc, AIInitDMA_80123fcc, (uint32_t start_addr, uint32_t length), (start_addr, length));
@@ -269,6 +289,8 @@ extern "C" uint32_t AIRegisterDMACallback_80123f88(uint32_t callback)
         g_ai.callback = callback;
         g_ai.loggedMissingCallback = false;
     }
+    RT_LOG(RT_TAG_AUDIO) << "AIRegisterDMACallback: callback=0x" << std::hex << callback << std::dec
+                         << std::endl;
     return old_callback;
 }
 PPC_NATIVE_OVERRIDE(80123f88, AIRegisterDMACallback_80123f88, uint32_t, (uint32_t callback), (callback));
@@ -287,6 +309,7 @@ extern "C" void AIStartDMA_80124048()
     if (!EnsureAudioBackend(rate)) {
         ReportAudioProblem("AIStartDMA", "audio backend init failed");
     }
+    RT_LOG(RT_TAG_AUDIO) << "AIStartDMA: DMA running" << std::endl;
 }
 
 PPC_NATIVE_OVERRIDE_VOID(80124048, AIStartDMA_80124048, (), ());

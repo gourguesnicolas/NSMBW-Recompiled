@@ -938,6 +938,8 @@ private:
         }
 
         m_ucodeCrc = crc;
+        RT_LOGF(RT_TAG_AUDIO, "AX ucode: iram=0x%08X length=0x%X crc=0x%08X known layout=%d\n", iramAddr,
+                iramLength, crc, static_cast<int>(PBLayoutForUCode(crc)));
         const PBLayout derivedPBLayout = PBLayoutForUCode(crc);
         if (derivedPBLayout != PBLayout::Unknown) {
             m_pbLayout = derivedPBLayout;
@@ -993,6 +995,12 @@ private:
                       const int16_t* coeffs, bool newFilter) {
         if (pb.running != 1) {
             return;
+        }
+        static std::atomic<uint32_t> runningVoiceCalls{0};
+        if ((runningVoiceCalls.fetch_add(1, std::memory_order_relaxed) % 2000u) == 0u) {
+            RT_LOGF(RT_TAG_AUDIO, "AX voice running: format=%u addr=0x%04X%04X (call %u)\n",
+                    static_cast<unsigned>(pb.audio_addr.sample_format), static_cast<unsigned>(pb.audio_addr.cur_addr_hi),
+                    static_cast<unsigned>(pb.audio_addr.cur_addr_lo), runningVoiceCalls.load());
         }
         Accelerator accel;
         accel.Setup(&pb);

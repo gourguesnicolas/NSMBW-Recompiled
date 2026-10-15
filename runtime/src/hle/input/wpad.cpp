@@ -4,6 +4,8 @@
 #include "wii_remote_input.h"
 
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 
 void NandQueueIosCallback(uint32_t callbackPtr, int32_t result, uint32_t callbackArg);
 
@@ -125,7 +127,20 @@ extern "C" int32_t WPADProbe_HLE(uint32_t chan, uint32_t typePtr)
     // console. EffectiveKind keeps the last type through SDL's re-creation of
     // the joystick after a swap.
     const WiiRemoteInput::Kind kind = WiiRemoteInput::EffectiveKind(chan);
-    if (WiiRemoteInput::IsRemoteChannel(chan)) {
+    // MKW_TRACE_INPUT=1 prints one line per 120 probes: what the game is told about each channel.
+    static const bool traceInput = std::getenv("MKW_TRACE_INPUT") != nullptr;
+    static uint32_t probeCount = 0;
+    if (traceInput && (probeCount++ % 120u) == 0u) {
+        std::fprintf(stderr, "[input] WPADProbe chan=%u kind=%s remote=%d scanning=%d\n", chan,
+                     WiiRemoteInput::KindLabel(kind), WiiRemoteInput::IsRemoteChannel(chan) ? 1 : 0,
+                     WiiRemoteInput::IsScanning() ? 1 : 0);
+    }
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+    const bool virtualRemote = (chan == 0 && !WiiRemoteInput::IsRemoteChannel(chan));
+#else
+    const bool virtualRemote = false;
+#endif
+    if (WiiRemoteInput::IsRemoteChannel(chan) || virtualRemote) {
         if (typePtr != 0) {
             uint32_t type = WpadContract::kExtensionCore;
             if (kind == WiiRemoteInput::Kind::RemoteWithNunchuk) type = 1u;

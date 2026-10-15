@@ -30,7 +30,7 @@ void GX__FinishInterruptHandler_8016ed94();
 void GX__Flush_8016e654();
 void GX__GetCPUFifo_8016cf10(uint32_t fa);
 void GX__GetProjectionv_801730cc(uint32_t pa);
-void GX__GetTexObjAll_80170bf8(uint32_t oa, uint32_t dp, uint32_t wp, uint32_t hp, uint32_t fp, uint32_t wsp, uint32_t wtp, uint32_t mp);
+
 void GX__GetTexObjLODAll_80170cbc(uint32_t oa, uint32_t mifp, uint32_t mafp, uint32_t milp, uint32_t malp, uint32_t lbp, uint32_t bcp, uint32_t elp, uint32_t map);
 void GX__GetViewportv_801733e0(uint32_t oa);
 void GX__GetVtxAttrFmt_8016e04c(uint32_t vf, uint32_t a, uint32_t cp, uint32_t tp, uint32_t fp);
@@ -191,8 +191,9 @@ PPC_NATIVE_OVERRIDE_VOID(801C7120, GX__InitTexObjTlut_80170b64, (uint32_t oa, ui
 PPC_NATIVE_OVERRIDE_VOID(801C7130, GX__InitTexObjFilter_80170b6c, (uint32_t oa, uint32_t minFilter, uint32_t magFilter), (oa, minFilter, magFilter));
 PPC_NATIVE_OVERRIDE_VOID(801C7180, GX__InitTexObjLODBias_80170b94, (uint32_t oa, float bias), (oa, bias));
 PPC_NATIVE_OVERRIDE_VOID(801C7250, GX__InitTexObjUserData_80170be8, (uint32_t oa, uint32_t userData), (oa, userData));
-PPC_NATIVE_OVERRIDE_VOID(801C7260, GX__GetTexObjAll_80170bf8, (uint32_t oa, uint32_t dp, uint32_t wp, uint32_t hp, uint32_t fp, uint32_t wsp, uint32_t wtp, uint32_t mp), (oa, dp, wp, hp, fp, wsp, wtp, mp));
-PPC_NATIVE_OVERRIDE_VOID(801C7340, GX__GetTexObjLODAll_80170cbc, (uint32_t oa, uint32_t mifp, uint32_t mafp, uint32_t milp, uint32_t malp, uint32_t lbp, uint32_t bcp, uint32_t elp, uint32_t map), (oa, mifp, mafp, milp, malp, lbp, bcp, elp, map));
+// 0x801C7260 is GXGetTexObjLODAll: it writes nine outputs (filters, LODs, bias, edge, anisotropy).
+// This SDK has no GXGetTexObjAll (the getters at 0x801C7200..0x801C7250 are read one at a time).
+PPC_NATIVE_OVERRIDE_VOID(801C7260, GX__GetTexObjLODAll_80170cbc, (uint32_t oa, uint32_t mifp, uint32_t mafp, uint32_t milp, uint32_t malp, uint32_t lbp, uint32_t bcp, uint32_t elp, uint32_t map), (oa, mifp, mafp, milp, malp, lbp, bcp, elp, map));
 PPC_NATIVE_OVERRIDE_VOID(801C7350, GX__LoadTexObjPreLoaded_80170dc8, (uint32_t oa, uint32_t tid), (oa, tid));
 PPC_NATIVE_OVERRIDE_VOID(801C74C0, GX__LoadTexObj_80170f2c, (uint32_t oa, uint32_t tid), (oa, tid));
 PPC_NATIVE_OVERRIDE_VOID(801C7520, GX__InitTlutObj_80170f80, (uint32_t oa, uint32_t da, uint32_t f, uint32_t e), (oa, da, f, e));
