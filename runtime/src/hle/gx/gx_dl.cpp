@@ -1,3 +1,4 @@
+#include <cstdio>
 #include "gx_internal.h"
 #include "gx_stream_common.h"
 #include "gx_cp_decode.h"
@@ -1289,8 +1290,19 @@ extern "C" void GxNotifyDisplayListMemoryWrite(uint32_t addr, uint32_t size) {
     GxGuestWrite::NotifyWrite(addr, size);
 }
 
+// MKW_TRACE_GX=1 statistics: how display lists were handled (printed by GxTraceDump).
+static uint32_t g_dlStatCalls = 0, g_dlStatNoDraw = 0, g_dlStatFlatten = 0, g_dlStatDirect = 0, g_dlStatFallback = 0,
+                g_dlStatScanFail = 0, g_dlStatException = 0, g_dlStatBytes = 0;
+extern "C" void GxDlStatsDump() {
+    std::fprintf(stderr, "[gxtrace] display lists: calls=%u bytes=%u nodraw=%u flatten=%u direct=%u fallback=%u scanfail=%u exceptions=%u\n",
+                 g_dlStatCalls, g_dlStatBytes, g_dlStatNoDraw, g_dlStatFlatten, g_dlStatDirect, g_dlStatFallback,
+                 g_dlStatScanFail, g_dlStatException);
+    g_dlStatCalls = g_dlStatNoDraw = g_dlStatFlatten = g_dlStatDirect = g_dlStatFallback = g_dlStatScanFail = g_dlStatException = g_dlStatBytes = 0;
+}
+
 extern "C" void GX__CallDisplayList_80172f64(uint32_t listAddr, uint32_t nbytes) {
     if (nbytes == 0 || listAddr == 0) return;
+    ++g_dlStatCalls; g_dlStatBytes += nbytes;
     try {
         const uint8_t* list = static_cast<const uint8_t*>(GuestToHostPtr(listAddr, nbytes));
         if (!list) return;
@@ -1310,6 +1322,7 @@ extern "C" void GX__CallDisplayList_80172f64(uint32_t listAddr, uint32_t nbytes)
         const bool mayContainDraw =
             (cached != nullptr) ? cached->mayContainDraw : DisplayListMayContainDraw(list, nbytes);
         if (!mayContainDraw) {
+            ++g_dlStatNoDraw;
             EnsureAuroraFrameActive();
             GXMarkFrameWork();
             GXCallDisplayList(list, nbytes);
@@ -1445,6 +1458,7 @@ extern "C" void GX__CallDisplayList_80172f64(uint32_t listAddr, uint32_t nbytes)
                 EnsureAuroraFrameActive();
                 GXMarkFrameWork();
                 GXCallDisplayList(auroraStream, auroraStreamBytes);
+                ++g_dlStatFlatten;
                 // No flip back to GX_DIRECT here
                 SyncAppliedVtxStateFromHleReal();
                 return;
@@ -1464,6 +1478,7 @@ extern "C" void GX__CallDisplayList_80172f64(uint32_t listAddr, uint32_t nbytes)
             if (applyOk) {
                 EnsureAuroraFrameActive();
                 GXMarkFrameWork();
+                ++g_dlStatDirect;
                 GXCallDisplayList(list, nbytes);
 
                 SyncAppliedVtxStateFromHleReal();
@@ -1472,6 +1487,8 @@ extern "C" void GX__CallDisplayList_80172f64(uint32_t listAddr, uint32_t nbytes)
 
         }
 
+        ++g_dlStatFallback;
+        if (!scanOk) ++g_dlStatScanFail;
         if (haveStateBeforeScan) {
             RestoreGxVertexState(stateBeforeScan);
         }
@@ -1480,7 +1497,7 @@ extern "C" void GX__CallDisplayList_80172f64(uint32_t listAddr, uint32_t nbytes)
         InvalidateAppliedAuroraState();
         ParseDisplayList(list, nbytes);
         InvalidateAppliedAuroraState();
-    } catch (...) {}
+    } catch (...) { ++g_dlStatException; }
 }
 
 PPC_NATIVE_OVERRIDE_VOID(80172F64, GX__CallDisplayList_80172f64, (uint32_t listAddr, uint32_t nbytes), (listAddr, nbytes));

@@ -13,6 +13,13 @@
 
 #include "hle_stubs.h"
 
+// MKW_TRACE_GX=1 counts the calls to each registered hook (see runtime/src/hle/gx/gx_trace.cpp).
+extern "C" void GxTraceCall(uint32_t address);
+#undef PPC_NATIVE_OVERRIDE_VOID
+#define PPC_NATIVE_OVERRIDE_VOID(addr_hex, name, arg_list, call_list) \
+    extern "C" void func_##addr_hex arg_list { GxTraceCall(0x##addr_hex); name call_list; } \
+    REGISTER_NATIVE_FUNCTION(0x##addr_hex, func_##addr_hex)
+
 extern "C" {
 uint32_t GX__EndDisplayList_80172eb4();
 uint32_t GX__Init_8016b850(uint32_t fifoBase, uint32_t fifoSize);

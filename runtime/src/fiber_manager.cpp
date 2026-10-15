@@ -1,4 +1,5 @@
 #include "fiber_manager.h"
+#include "hle/os/os_layout.h"
 #include "memory.h"
 #include "abi_bridge.h"
 #include "hle_stubs.h"
@@ -46,10 +47,11 @@ std::atomic<uint32_t> g_viRetracePendingCount{0};
 namespace {
 constexpr uint32_t kOSCurrentContextAddr = 0x800000d4u;
 constexpr uint32_t kOSRunningContextAddr = 0x800000e4u;  // OSGetCurrentThread reads this
-constexpr uint32_t kThreadQueueArrayAddr = 0x803477b0u;
-constexpr uint32_t kSchedulerPendingFlagAddr = 0x80386920u;
-constexpr uint32_t kSchedulerReschedCounterAddr = 0x8038691cu;
-constexpr uint32_t kSchedulerIdleFlagAddr = 0x80386918u;
+// The scheduler statics are per game (hle/os/os_layout.h).
+constexpr uint32_t kThreadQueueArrayAddr = OsHleInternal::kThreadQueueArrayAddr;
+constexpr uint32_t kSchedulerPendingFlagAddr = OsHleInternal::kSchedulerPendingFlagAddr;
+constexpr uint32_t kSchedulerReschedCounterAddr = OsHleInternal::kSchedulerReschedCounterAddr;
+constexpr uint32_t kSchedulerIdleFlagAddr = OsHleInternal::kSchedulerIdleFlagAddr;
 
 // OSThread structure offsets
 constexpr uint32_t kThreadStateOffset = 0x2C8u;
