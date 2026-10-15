@@ -50,25 +50,25 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-14 (PR #67 open; IOS/NAND, SC and trace switches in review).
+Last updated: 2026-10-15 (PR #68 merged; first picture, startup-screen release in review).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
   links (#13). `runtime.native_hooks: false` keeps the Mario Kart Wii (MKW) hooks off; this game's hooks live
   in `runtime/src/hle/profiles/smne01` (profile `smne01`, selected by `runtime.hook_profile`).
-- **M2 in progress (#16, first launch)**: the executable boots through to the game's frame loop and
-  **presents 60 frames per second** (`MKW_TRACE_VI=1`). Passed: `OSInit`, DVD, VI, GX init, WPAD/KPAD, ROM
-  font, audio (AI/DSP/AX), the game's own REL loading, IOS (open/close/read/write/seek/ioctl/ioctlv, sync and
-  async, answered from the host NAND), SC status. The game reads, in order (`MKW_TRACE_DVD=1`): the strap
-  layout (`wiiStrap.arc`), fonts, messages, HomeButton, sound (`wii_mj2d_sound.brsar`), the four REL
-  modules, `Env_*.arc`, the wipe layouts, `effect_wnmario.*`. It then stops reading the disc.
-- **What is not known**: whether the picture is correct. Nothing on screen has been checked by a person yet.
-  Also unhandled so far: `/dev/es` ioctl 29 and 27, the NAND file `play_rec.dat`
-  (`/title/00000001/00000002/data`, open mode 3 never creates it), `SYSCONF` (not created; SC getters other
-  than aspect ratio return defaults).
+- **M2 nearly done (#16, first launch)**: the game boots and **draws correctly at 60 fps**. Seen in the
+  window (screenshots, see "How to run it"): the wrist-strap screen (`wiiStrap`), then the dialog "New Super
+  Mario Bros. Wii save data has been created." with an OK button. The game created its save file through the
+  IOS/NAND hooks by itself. It waits there for the OK button: input from the player has not been tried yet.
+- **Startup screen**: the runtime covers the game with an opaque black "WiiCompiled" screen until
+  `settings_overlay::NotifyStrapInputAccepted()`. MKW calls it from its strap scene
+  (`runtime/src/hle/strap_scene.cpp`); for SMNE01 `vi.cpp` calls it after 30 presented frames. This is a
+  stand-in: a hook on this game's strap scene would be the faithful version.
+- **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
+  NAND (SC getters other than aspect ratio return defaults).
 - **Function discovery**: `scripts/coverage.py` also counts `lis`/`addi` relocations (ADDR16_HA/LO) as
   function pointers (190 new starts in `MAP.txt`).
-- **Open PRs**: #67 (audio hooks, function discovery) and `port-ios` (IOS, SC, trace switches).
+- **Open PRs**: `gx-frame-trace` (startup-screen release, GXBegin counter in the VI trace).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -82,7 +82,10 @@ Last updated: 2026-10-14 (PR #67 open; IOS/NAND, SC and trace switches in review
    `files/` and `sys/fst.bin`). Everything there is git-ignored.
 3. Trace switches: `MKW_TRACE_DVD=1` (every disc file read), `MKW_TRACE_VI=1` (a line per 60 frame-buffer
    submissions). Close any running `WiiCompiled.exe` before rebuilding: it locks the executable.
-4. Read `stderr` and `UserData/Logs/<run>/`: a stop prints the guest address (`lr=`, "guest address:").
+4. To see the picture from a script: find the window by title `WiiCompiled` (`FindWindow`; the process
+   `MainWindowHandle` can be 0), make the process DPI-aware, `CopyFromScreen` its rectangle. `MKW_TRACE_VI=1` also
+   prints the number of `GXBegin` calls so far.
+5. Read `stderr` and `UserData/Logs/<run>/`: a stop prints the guest address (`lr=`, "guest address:").
    For a run that neither crashes nor ends, set `MKW_HANG_DUMP_SECONDS=20`: the CPU state is printed three
    times (last call site in `lr`).
    To list MMIO-touching functions still reachable from `__start`, scan `generated/functions` for the
@@ -96,17 +99,17 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **Look at the window** and report: black, strap screen, logo, garbage. If black or wrong, trace GX (draw
-   calls reaching aurora, EFB copies, `VIFlush` of the XFB) before anything else.
-2. **Fill the missing console data**: `play_rec.dat`, `SYSCONF` (or the SC getters: language, sound mode,
-   progressive, screen saver; the SDK's SC functions are at `0x801DB080`-`0x801DDF00`), `/dev/es` ioctls.
-3. **Controller**: the game needs a real KPAD sample; check WPADProbe type, buttons, and that the strap
-   screen can be passed. GameCube pad (`PADInit`/`PADRead`) when reached.
+1. **Input**: press OK on the save dialog with a real controller or the keyboard bindings, and walk to the
+   title screen and the first level. Check what the Wii Remote HLE gives the game (WPADProbe type, KPAD
+   buttons, pointer). Report any crash with its guest address.
+2. **Fill the missing console data**: `play_rec.dat`, `SYSCONF` (language, sound mode, progressive, screen
+   saver getters at `0x801DB080`-`0x801DDF00`), `/dev/es` ioctls 29 and 27.
+3. **Faithful strap-scene hook** to replace the 30-frame stand-in; GameCube pad (`PADInit`/`PADRead`) when
+   reached; sound check (audio is initialised, nothing has been listened to).
 4. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
-   `KPADGetUnifiedWpadStatus`, `NANDInit`/NAND API level (MKW hooks it at `0x8019xxxx`; here only the IOS
-   level is replaced and it works so far).
+   `KPADGetUnifiedWpadStatus`, the NAND API level (only the IOS level is replaced; it works so far).
 5. Determinism audit (#15): `mftb`/`OSGetTime` read the host clock.
-6. M2 exit: stable main loop and a screen a person can recognise.
+6. M2 exit: the title screen and a level are playable; then M3 onward in `docs/nsmbw/roadmap.md`.
 
 ### Do not forget
 - Remove nothing from the MKW profile; keep `allow_unsupported_instructions: false`.

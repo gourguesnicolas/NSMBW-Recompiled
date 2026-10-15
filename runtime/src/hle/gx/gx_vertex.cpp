@@ -274,7 +274,12 @@ void ServiceDeferredTimingDuringGxWork() {
 }
 }
 
+// Number of GXBegin calls so far; read by the MKW_TRACE_VI line to show whether the game draws.
+static uint32_t g_gxBeginCountForTrace = 0;
+extern "C" uint32_t GxBeginCountForTrace() { return g_gxBeginCountForTrace; }
+
 extern "C" void GX__Begin_8016f0f0(uint32_t t, uint32_t vf, uint32_t nv) {
+    ++g_gxBeginCountForTrace;
     if(IsDisplayListActive()){
         WriteDisplayListData((u8)(t|vf), 1);
         WriteDisplayListData((u16)nv, 2);
