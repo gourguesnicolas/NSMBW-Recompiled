@@ -805,6 +805,7 @@ extern "C" void VIFlush_HLE_801ba9a4(CpuContext* ctx)
 PPC_NATIVE_OVERRIDE_VOID(801BA9A4, VIFlush_HLE_801ba9a4, (CpuContext* ctx), (ctx));
 
 extern "C" uint32_t GxBeginCountForTrace();
+extern "C" void GxTraceDump();
 
 extern "C" void VISetNextFrameBuffer_HLE_801baab8(CpuContext* ctx)
 {
@@ -824,6 +825,7 @@ extern "C" void VISetNextFrameBuffer_HLE_801baab8(CpuContext* ctx)
     if (traceFrames && (frameCount % 60u) == 1u) {
         std::fprintf(stderr, "[vi] frame buffer submission %u: 0x%08X, GXBegin calls so far %u\n",
                      frameCount, fbPtr, GxBeginCountForTrace());
+        GxTraceDump();
     }
     {
         std::lock_guard<std::mutex> lock(g_viMutex);

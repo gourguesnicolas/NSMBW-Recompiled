@@ -116,6 +116,11 @@ void SweepGfxNodeList(uint32_t list, bool offscreenList) {
 // record 2), so without this bypass they'd inherit the expansion and render vertically squashed.
 // Re-arms every scene transition since the offscreen renderer is a per-scene singleton.
 void AssertOffscreenScreenBypass() {
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+    // The EGG screen records, projection scale and draw lists below are Mario Kart Wii (PAL) addresses.
+    // In this game they are other data, so nothing is read or written there.
+    return;
+#endif
     SweepGfxNodeList(kMkwGfxDrawList, /*offscreenList=*/false);
     SweepGfxNodeList(kMkwGfxOffscreenList, /*offscreenList=*/true);
 }
@@ -129,6 +134,12 @@ void WriteEggScreenRecord(uint32_t recordAddr, uint32_t width) {
 }
 
 void ApplyEggScreenRecords(uint32_t surfaceWidth, uint32_t surfaceHeight) {
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+    // Mario Kart Wii (PAL) addresses, see AssertOffscreenScreenBypass. Not applied to this game.
+    (void)surfaceWidth;
+    (void)surfaceHeight;
+    return;
+#endif
     using namespace MkwDynamicAspect;
     const uint32_t width43 =
         g_widescreenConfigured ? EggRecordWidth(kEggRecordWidth43, surfaceWidth, surfaceHeight)

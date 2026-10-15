@@ -1,3 +1,4 @@
+#include <cstdlib>
 // gx_pixel.cpp - Pixel Processing, Blending, and Fog
 #include "gx_internal.h"
 
@@ -26,6 +27,9 @@ PPC_NATIVE_OVERRIDE_VOID(801727f8, GX__SetAlphaUpdate_801727f8, (uint32_t en), (
 // ============================================================================
 
 extern "C" void GX__SetZMode_80172824(uint32_t ce, uint32_t f, uint32_t ue) {
+    // Debug switch: MKW_GX_DEBUG_NOZ=1 turns the depth test and writes off, to tell a depth problem from the rest.
+    static const bool noZ = std::getenv("MKW_GX_DEBUG_NOZ") != nullptr;
+    if (noZ) { ce = 0; ue = 0; }
     GXSetZMode(static_cast<GXBool>(ce), static_cast<GXCompare>(f), static_cast<GXBool>(ue));
 }
 PPC_NATIVE_OVERRIDE_VOID(80172824, GX__SetZMode_80172824, (uint32_t ce, uint32_t f, uint32_t ue), (ce, f, ue));
@@ -77,6 +81,9 @@ PPC_NATIVE_OVERRIDE_VOID(801720c0, GX__SetZTexture_801720c0, (uint32_t op, uint3
 // ============================================================================
 
 extern "C" void GX__SetCullMode_8016f3b8(uint32_t m) {
+    // Debug switch: MKW_GX_DEBUG_NOCULL=1 draws both faces.
+    static const bool noCull = std::getenv("MKW_GX_DEBUG_NOCULL") != nullptr;
+    if (noCull) { m = 0; }
     GXSetCullMode(static_cast<GXCullMode>(m));
 }
 PPC_NATIVE_OVERRIDE_VOID(8016f3b8, GX__SetCullMode_8016f3b8, (uint32_t m), (m));

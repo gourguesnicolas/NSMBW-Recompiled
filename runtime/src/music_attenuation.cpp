@@ -531,6 +531,11 @@ void SetVoicesVolume(float volume) noexcept {
 }
 
 void TickGuest() noexcept {
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+    // Finds Mario Kart Wii's sound manager at a fixed address and rewrites its player volumes; in this game
+    // that address is other data. Not applied.
+    return;
+#endif
     const bool attenuated = ShouldAttenuate();
     const uint32_t soundPlayerArray = ResolveSoundPlayerArray();
     if (soundPlayerArray == 0) {
@@ -573,6 +578,11 @@ void TickGuest() noexcept {
 }
 
 void SetSoundPlayerVolume(uint32_t soundPlayer, float requestedVolume) {
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+    (void)soundPlayer;
+    (void)requestedVolume;
+    return;
+#endif
     const float clamped = ClampSoundPlayerVolume(requestedVolume);
     float applied = clamped;
     const uint32_t soundPlayerArray = ResolveSoundPlayerArray();

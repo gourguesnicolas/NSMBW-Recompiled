@@ -646,10 +646,23 @@ private:
 
     void ProcessPBList(uint32_t pbAddr, bool newFilter, bool oldAxLayout) {
         uint32_t guard = 0;
+        uint32_t statTotal = 0, statRunning = 0;
+        struct StatPrinter {
+            uint32_t& total; uint32_t& running;
+            ~StatPrinter() {
+                static const bool trace = std::getenv("MKW_TRACE_AUDIO") != nullptr;
+                static uint32_t lists = 0;
+                if (trace && (++lists % 400u) == 0u) {
+                    RT_LOGF(RT_TAG_AUDIO, "AX voice list: %u parameter blocks, %u running\n", total, running);
+                }
+            }
+        } statPrinter{statTotal, statRunning};
         while (pbAddr && guard++ < 256) {
             AXPBWii pb{};
             ReadPB(pbAddr, pb);
             AXBuffers buffers = MixBuffers();
+            ++statTotal;
+            if (pb.running == 1) ++statRunning;
             const AXMixControl control = ConvertMixerControl(Hilo(pb.mixer_control_hi, pb.mixer_control_lo));
             if (oldAxLayout && (pb.updates.num_updates[0] | pb.updates.num_updates[1] | pb.updates.num_updates[2]) != 0) {
                 const auto updates = LoadPBUpdates(pb);
