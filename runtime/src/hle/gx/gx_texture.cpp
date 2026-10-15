@@ -306,6 +306,18 @@ extern "C" void GX__InitTexObjCI_80170a04(uint32_t oa, uint32_t da, uint32_t w, 
 PPC_NATIVE_OVERRIDE_VOID(80170a04, GX__InitTexObjCI_80170a04, (uint32_t oa, uint32_t da, uint32_t w, uint32_t h, uint32_t f, uint32_t ws, uint32_t wt, uint32_t m, uint32_t tl), (oa, da, w, h, f, ws, wt, m, tl));
 
 extern "C" void GX__InitTexObjLOD_80170a4c(uint32_t oa, uint32_t mif, uint32_t maf, float mil, float mal, float lb, uint32_t bc, uint32_t el, uint32_t ma) {
+    if (mif > 5u || maf > 1u) {
+        // Not a texture filter: the arguments are not those of GXInitTexObjLOD. Report once and skip
+        // rather than index the filter tables out of range.
+        static bool reported = false;
+        if (!reported) {
+            reported = true;
+            const CpuContext& cpu = GetPersistentCpuContext();
+            std::fprintf(stderr, "[gx] GXInitTexObjLOD called with minFilt=0x%08X magFilt=0x%08X obj=0x%08X lr=0x%08X"
+                         " r6=0x%08X r7=0x%08X r8=0x%08X\n", mif, maf, oa, cpu.lr, bc, el, ma);
+        }
+        return;
+    }
     std::lock_guard<std::mutex> guard(g_texObjMutex); GXTexObj* obj = GetHostTexObj(oa); TexObjMeta& meta = GetTexObjMeta(oa);
     float fmal = std::isfinite(mal) && mal >= 0.f ? mal : 0.f, fmil = std::isfinite(mil) && mil >= 0.f ? std::min(mil, fmal) : 0.f;
     meta.minFilter=mif; meta.magFilter=maf; meta.minLod=fmil; meta.maxLod=fmal; meta.lodBias=lb; meta.biasClamp=(bc!=0); meta.edgeLod=(el!=0); meta.maxAniso=ma;

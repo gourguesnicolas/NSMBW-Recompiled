@@ -2,11 +2,14 @@
 #include "input_bindings.h"
 #include "memory.h"
 #include "wii_remote_input.h"
+#include "gamepad_as_remote.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 
 // KPAD HLE fed by a real Bluetooth Wii Remote. The game calls KPADRead once per
 // frame with room for 16 KPADStatus entries and only looks at entry 0; with a
@@ -207,7 +210,14 @@ void WriteUnifiedStatus(uint32_t addr, const WiiRemoteInput::KpadSample* sample)
 // Neutral sticks and no buttons while an overlay owns input; the remote stays connected.
 bool ReadSample(uint32_t chan, WiiRemoteInput::KpadSample& sample) {
     if (!WiiRemoteInput::ReadKpadSample(chan, sample)) {
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+        // No real Wii Remote: this game reads nothing else, so the keyboard and gamepad act as one.
+        if (!GamepadAsRemote::Read(chan, sample)) {
+            return false;
+        }
+#else
         return false;
+#endif
     }
     if (InputBindings::InputBlocked()) {
         sample.hold = 0;
@@ -232,6 +242,12 @@ extern "C" int32_t KPAD__Read_HLE(uint32_t chan, uint32_t statusPtr, uint32_t co
     }
     WiiRemoteInput::KpadSample sample;
     const bool have = ReadSample(chan, sample);
+    static const bool traceInput = std::getenv("MKW_TRACE_INPUT") != nullptr;
+    static uint32_t readCount = 0;
+    if (traceInput && (readCount++ % 300u) == 0u) {
+        std::fprintf(stderr, "[input] KPADRead chan=%u have=%d hold=0x%08X\n", chan, have ? 1 : 0,
+                     have ? sample.hold : 0u);
+    }
     try {
         return WriteStatus(chan, statusPtr, have ? &sample : nullptr);
     } catch (const Memory::AccessViolation&) {

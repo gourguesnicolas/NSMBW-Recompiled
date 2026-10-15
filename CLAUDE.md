@@ -50,25 +50,37 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-15 (PR #68 merged; first picture, startup-screen release in review).
+Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, audio traces in review).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
   links (#13). `runtime.native_hooks: false` keeps the Mario Kart Wii (MKW) hooks off; this game's hooks live
   in `runtime/src/hle/profiles/smne01` (profile `smne01`, selected by `runtime.hook_profile`).
-- **M2 nearly done (#16, first launch)**: the game boots and **draws correctly at 60 fps**. Seen in the
-  window (screenshots, see "How to run it"): the wrist-strap screen (`wiiStrap`), then the dialog "New Super
-  Mario Bros. Wii save data has been created." with an OK button. The game created its save file through the
-  IOS/NAND hooks by itself. It waits there for the OK button: input from the player has not been tried yet.
+- **M2 nearly done (#16, first launch)**: the game boots, draws the strap screen and the save dialog, accepts
+  input, and runs on to the opening title scene (it reads `US/Layout/openingTitle.arc`, the title music
+  `Sound/stream/title_lr.ry.32.brstm`, the player models, then runs the title at 60 fps with about 1,000
+  `GXBegin` per frame). **The title screen is black**, and the music is reported missing by the user.
+- **Input**: a real Wii Remote is used when paired (SDL HIDAPI). Otherwise
+  `runtime/src/hle/input/gamepad_as_remote.cpp` makes a virtual remote held sideways: arrows or D-pad/stick
+  move, Space or X (pad A) = "2" (jump), Left Shift or Z (pad B) = "1" (run), Enter = A, Backspace = B,
+  P = +, M = -, H = Home. It is compiled in only for the `smne01` profile. This is what lets the save dialog
+  be answered; `MKW_TRACE_INPUT=1` prints what the game is told.
+- **Audio, measured** (`MKW_TRACE_AUDIO=1`): the AX frame callback runs, voices are "running" (ADPCM), the
+  AX ucode CRC `0x4CC52064` is a known one, and the mixed output is silent (peak 0) until about 15 s after
+  the title starts, then loud (peaks 3,000-32,768; some clipping). So the music is mixed. Whether it is
+  correct, and whether it reaches the speakers, is not established: nobody has listened. Check the device
+  and the sample format before blaming the mix.
+- **GX hook mistakes found so far**: `0x801C7260` is `GXGetTexObjLODAll` (it had been registered as
+  `GetTexObjAll`, and `0x801C7340`, a 16-byte getter, as LODAll, so the game read garbage and crashed in
+  `GXInitTexObjLOD`). The 119 GX hooks were aligned by order and size; others may be wrong. The size ratio
+  against the Mario Kart Wii function is a cheap check (a 600-byte function mapped to a 16-byte one is wrong
+  unless it is a jump-table fragment).
 - **Startup screen**: the runtime covers the game with an opaque black "WiiCompiled" screen until
-  `settings_overlay::NotifyStrapInputAccepted()`. MKW calls it from its strap scene
-  (`runtime/src/hle/strap_scene.cpp`); for SMNE01 `vi.cpp` calls it after 30 presented frames. This is a
-  stand-in: a hook on this game's strap scene would be the faithful version.
+  `settings_overlay::NotifyStrapInputAccepted()`; for SMNE01 `vi.cpp` calls it after 30 presented frames
+  (stand-in for MKW's strap-scene hook).
 - **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
   NAND (SC getters other than aspect ratio return defaults).
-- **Function discovery**: `scripts/coverage.py` also counts `lis`/`addi` relocations (ADDR16_HA/LO) as
-  function pointers (190 new starts in `MAP.txt`).
-- **Open PRs**: `gx-frame-trace` (startup-screen release, GXBegin counter in the VI trace).
+- **Open PRs**: #69 (startup screen) and `input-gx-fixes` (virtual remote, LODAll fix, traces).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -99,17 +111,16 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **Input**: press OK on the save dialog with a real controller or the keyboard bindings, and walk to the
-   title screen and the first level. Check what the Wii Remote HLE gives the game (WPADProbe type, KPAD
-   buttons, pointer). Report any crash with its guest address.
-2. **Fill the missing console data**: `play_rec.dat`, `SYSCONF` (language, sound mode, progressive, screen
-   saver getters at `0x801DB080`-`0x801DDF00`), `/dev/es` ioctls 29 and 27.
-3. **Faithful strap-scene hook** to replace the 30-frame stand-in; GameCube pad (`PADInit`/`PADRead`) when
-   reached; sound check (audio is initialised, nothing has been listened to).
-4. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
-   `KPADGetUnifiedWpadStatus`, the NAND API level (only the IOS level is replaced; it works so far).
-5. Determinism audit (#15): `mftb`/`OSGetTime` read the host clock.
-6. M2 exit: the title screen and a level are playable; then M3 onward in `docs/nsmbw/roadmap.md`.
+1. **Black title screen**: the title scene runs (music mixes, 1,000 draws per frame) but nothing shows. Find
+   out why: wrong GX hooks used by the 3D/title path (audit the 119 against bodies, starting with TEV,
+   blend/Z/alpha-compare, cull, viewport/scissor, display lists `GXCallDisplayList`), a fade that never opens,
+   or an EFB copy problem. A per-frame trace of the GX calls (name and arguments) would settle it.
+2. **Music**: listen, then check the audio backend output path and the sample format if it is noise or silent.
+3. **Fill the missing console data**: `play_rec.dat`, `SYSCONF`, `/dev/es` ioctls 29 and 27.
+4. Faithful strap-scene hook; GameCube pad when reached.
+5. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
+   `KPADGetUnifiedWpadStatus`, the NAND API level.
+6. Determinism audit (#15); M2 exit: the title screen and a level are playable.
 
 ### Do not forget
 - Remove nothing from the MKW profile; keep `allow_unsupported_instructions: false`.
