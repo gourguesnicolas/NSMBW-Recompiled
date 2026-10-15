@@ -79,7 +79,8 @@ Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, 
   `GXSetArray` entry replaced a getter; `GXInitTexObjLODBias` does not exist in this SDK; `GXGetTexObjAll` is
   at `0x801C7180`; `GXSetVtxDescv` was on an inner label (real `0x801C3A30`), `GXSetVtxAttrFmtv` on the tail of
   `GXSetVtxAttrFmt` (real `0x801C4250`; unhooked, list-based vertex formats were never applied, which is
-  what 3D models use), `GXSetNumTexGens` was on `0x801C4A50` (real `0x801C4A20`). How they were found: compare the distance between two consecutive hooks with the distance
+  what 3D models use), `GXSetNumTexGens` was on `0x801C4A50` (real `0x801C4A20`); `GXInvalidateTexAll` was on `0x801C7750` (an unrelated
+  bit setter; real `0x801C76C0`). How they were found: compare the distance between two consecutive hooks with the distance
   between their Mario Kart Wii counterparts, then read the body (BP register id, `gd+offset`, argument use).
   Still unaudited by body: the vertex-attribute group (`0x801C37C0`-`0x801C4780`), FIFO group, TEV group,
   transform group. They fit the distance check, which is not proof.

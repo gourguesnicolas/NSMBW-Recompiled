@@ -196,7 +196,7 @@ PPC_NATIVE_OVERRIDE_VOID(801C7350, GX__LoadTexObjPreLoaded_80170dc8, (uint32_t o
 PPC_NATIVE_OVERRIDE_VOID(801C74C0, GX__LoadTexObj_80170f2c, (uint32_t oa, uint32_t tid), (oa, tid));
 PPC_NATIVE_OVERRIDE_VOID(801C7520, GX__InitTlutObj_80170f80, (uint32_t oa, uint32_t da, uint32_t f, uint32_t e), (oa, da, f, e));
 PPC_NATIVE_OVERRIDE_VOID(801C7550, GX__LoadTlut_80170fa8, (uint32_t oa, uint32_t tl), (oa, tl));
-PPC_NATIVE_OVERRIDE_VOID(801C7750, GX__InvalidateTexAll_80171110, (), ());
+PPC_NATIVE_OVERRIDE_VOID(801C76C0, GX__InvalidateTexAll_80171110, (), ());
 PPC_NATIVE_OVERRIDE_VOID(801C77D0, GX__SetTexCoordScaleManually_80171180, (uint32_t c, uint32_t en, uint32_t ss, uint32_t ts), (c, en, ss, ts));
 PPC_NATIVE_OVERRIDE_VOID(801C7840, GX__SetTexCoordBias_801711fc, (uint32_t c, uint32_t se, uint32_t te), (c, se, te));
 PPC_NATIVE_OVERRIDE_VOID(801C78D0, __GX__SetSUTexRegs_801712f0, (), ());
