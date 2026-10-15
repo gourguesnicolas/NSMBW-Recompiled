@@ -996,11 +996,17 @@ private:
         if (pb.running != 1) {
             return;
         }
+        static const bool traceVoices = std::getenv("MKW_TRACE_AUDIO") != nullptr;
         static std::atomic<uint32_t> runningVoiceCalls{0};
-        if ((runningVoiceCalls.fetch_add(1, std::memory_order_relaxed) % 2000u) == 0u) {
-            RT_LOGF(RT_TAG_AUDIO, "AX voice running: format=%u addr=0x%04X%04X (call %u)\n",
-                    static_cast<unsigned>(pb.audio_addr.sample_format), static_cast<unsigned>(pb.audio_addr.cur_addr_hi),
-                    static_cast<unsigned>(pb.audio_addr.cur_addr_lo), runningVoiceCalls.load());
+        if (traceVoices && (runningVoiceCalls.fetch_add(1, std::memory_order_relaxed) % 1500u) == 0u) {
+            RT_LOGF(RT_TAG_AUDIO,
+                    "AX voice: fmt=%u loop=%u cur=0x%04X%04X loopaddr=0x%04X%04X end=0x%04X%04X ratio=0x%04X%04X vol=%d\n",
+                    static_cast<unsigned>(pb.audio_addr.sample_format), static_cast<unsigned>(pb.audio_addr.looping),
+                    static_cast<unsigned>(pb.audio_addr.cur_addr_hi), static_cast<unsigned>(pb.audio_addr.cur_addr_lo),
+                    static_cast<unsigned>(pb.audio_addr.loop_addr_hi), static_cast<unsigned>(pb.audio_addr.loop_addr_lo),
+                    static_cast<unsigned>(pb.audio_addr.end_addr_hi), static_cast<unsigned>(pb.audio_addr.end_addr_lo),
+                    static_cast<unsigned>(pb.src.ratio_hi), static_cast<unsigned>(pb.src.ratio_lo),
+                    static_cast<int>(pb.vol_env.cur_volume));
         }
         Accelerator accel;
         accel.Setup(&pb);
