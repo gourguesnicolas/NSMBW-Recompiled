@@ -5,6 +5,7 @@
 #include "nand_internal.h"
 
 #include "discord_presence.h"
+#include "isa/ppc_isa_int.h"
 #include "runtime_log.h"
 
 extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx);
@@ -435,6 +436,13 @@ static int32_t IosOpenImpl(uint32_t pathPtr, uint32_t mode) {
     // still find them on a fresh managed NAND.
     if (!PathExists(hostPath) && IsFaceLibResourcePath(path)) {
         SeedFaceLibResource(hostPath);
+    }
+    // The system menu writes the play log at every launch, so it is written on the first open of each run.
+    static std::once_flag playRecordOnce;
+    if (IsPlayRecordPath(path)) {
+        std::call_once(playRecordOnce, [&] {
+            SeedPlayRecord(hostPath, (static_cast<uint64_t>(PPC_Mftbu()) << 32) | PPC_Mftb());
+        });
     }
 
     // Determine file mode. IOS never creates files on open - creation happens

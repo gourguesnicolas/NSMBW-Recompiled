@@ -256,8 +256,13 @@ answered -106, so the game took its save for missing and created a new one at ev
 (which truncated existing files) emptied it. CreateFile now answers "already exists" (-105) instead.
 `MKW_TRACE_NAND=1` prints every IOS open, ISFS ioctl and ioctlv with its result.
 
-`/title/00000001/00000002/data/play_rec.dat` (the system menu's play log) is opened read-write and missing on a
-new NAND. The runtime does not create it; nothing visible fails without it (not investigated further).
+`/title/00000001/00000002/data/play_rec.dat` is the system menu's play log, which the menu writes before booting
+a disc. The SDK's play-record state machine (`0x801B6D60`, string at `0x8033FCC8`) opens it read-write, reads
+128 bytes and keeps the u64 at `0x60`, then every minute writes the record back with the time at `0x60` and
+the checksum at `0x00` (sum of the 31 words after it) updated; it stops if the time it read is more than 300
+seconds behind the time base. The runtime writes the file on the first open of each run (`storage/nand_fs.cpp`):
+title name from `opening.bnr` (IMET, console language, 40 UTF-16 characters at `0x04`), start and last time =
+the guest time base (`0x58`, `0x60`), game ID from `0x80000000` (`0x68`).
 
 ## Not found, or no counterpart
 

@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#75 merged; PR #76 open: tileset refreshed after a pipe).
+Last updated: 2026-10-18 (#75 merged; PRs open: #76 tileset refreshed after a pipe, #77 play_rec.dat).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -122,10 +122,10 @@ Last updated: 2026-10-18 (#75 merged; PR #76 open: tileset refreshed after a pip
   `SYSCONF` (`runtime/include/nand_sysconf.h`) and a `setting.txt` for the disc's region (USA here, from
   `sys/boot.bin`); the SDK now parses `SYSCONF` (the `SCCheckStatus` hook used to skip the parse).
   `[system] language = "french"` in `Config.toml` puts the game in French (seen: strap screen, save dialog).
-  `MKW_TRACE_NAND=1` traces NAND traffic. `play_rec.dat` is still not created (nothing visible fails).
+  `MKW_TRACE_NAND=1` traces NAND traffic. `play_rec.dat` (the system menu's play log) is written on the first open of each run, as the menu does before booting a disc: banner name, game ID, guest time base; the SDK then updates its time every minute (checked).
   **Confirmed by the user**: progress is kept after finishing a level and relaunching. #19's three criteria
   (title directory, system settings, save creation flow) are met.
-- **Open PRs**: #76 (tileset refresh after a pipe).
+- **Open PRs**: #76 (tileset refresh after a pipe), #77 (play_rec.dat, stacked on #76).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
