@@ -9,7 +9,7 @@ Approximate: the boundaries come from the named game classes on either side. The
 | Band | Range | Function starts |
 | --- | --- | --- |
 | startup (crt0, init) | `0x80004000` - `0x80006780` | 6 |
-| game and engine code | `0x80006780` - `0x8019F000` | 9,686 |
+| game and engine code | `0x80006780` - `0x8019F000` | 9,693 |
 | SDK: OS, VI, GX, DVD, AX, NAND, WPAD, KPAD | `0x8019F000` - `0x80229000` | 2,130 |
 | engine libraries (nw4r, EGG) | `0x80229000` - `0x802DC000` | 2,810 |
 | C library and compiler runtime | `0x802DC000` - `0x802EA000` | 232 |
@@ -41,36 +41,36 @@ The SDK band holds 2,130 function starts. Game and engine code calls 315 of them
 | `0x801B2F40` | 257 | 107 |  | OSUnlockMutex |
 | `0x801C0540` | 255 | 130 |  |  |
 | `0x801C0BD0` | 196 | 86 |  |  |
-| `0x801C40B0` | 166 | 60 |  |  |
-| `0x801C37C0` | 154 | 59 |  |  |
+| `0x801C40B0` | 166 | 60 |  | hook: GX__SetVtxAttrFmt_8016dc68 |
+| `0x801C37C0` | 154 | 59 |  | hook: GX__SetVtxDesc_8016d3a4 |
 | `0x801B2E60` | 151 | 99 |  | OSLockMutex |
 | `0x801C1160` | 115 | 48 |  |  |
-| `0x801C8790` | 107 | 59 | GX write-gather FIFO |  |
-| `0x801C8330` | 91 | 58 | GX write-gather FIFO |  |
-| `0x801C82F0` | 90 | 57 | GX write-gather FIFO |  |
-| `0x801C5570` | 83 | 67 | GX write-gather FIFO |  |
-| `0x801C88F0` | 76 | 59 |  |  |
-| `0x801C8370` | 76 | 57 | GX write-gather FIFO |  |
+| `0x801C8790` | 107 | 59 | GX write-gather FIFO | hook: GX__SetTevOrder_8017214c |
+| `0x801C8330` | 91 | 58 | GX write-gather FIFO | hook: GX__SetTevAlphaIn_80171d20 |
+| `0x801C82F0` | 90 | 57 | GX write-gather FIFO | hook: GX__SetTevColorIn_80171ce0 |
+| `0x801C5570` | 83 | 67 | GX write-gather FIFO | hook: GX__Begin_8016f0f0 |
+| `0x801C88F0` | 76 | 59 |  | hook: GX__SetNumTevStages_801722a8 |
+| `0x801C8370` | 76 | 57 | GX write-gather FIFO | hook: GX__SetTevColorOp_80171d60 |
 | `0x801C04D0` | 75 | 60 |  |  |
-| `0x801C83D0` | 75 | 56 | GX write-gather FIFO |  |
-| `0x801C8DC0` | 73 | 59 | GX write-gather FIFO |  |
-| `0x801C6AF0` | 72 | 33 |  |  |
-| `0x801C4A20` | 64 | 54 |  |  |
+| `0x801C83D0` | 75 | 56 | GX write-gather FIFO | hook: GX__SetTevAlphaOp_80171db8 |
+| `0x801C8DC0` | 73 | 59 | GX write-gather FIFO | hook: GX__SetBlendMode_8017277c |
+| `0x801C6AF0` | 72 | 33 |  | hook: GX__SetChanCtrl_80170570 |
+| `0x801C4A20` | 64 | 54 |  | hook: GX__SetNumTexGens_8016e5a4 |
 | `0x801C0500` | 64 | 43 |  |  |
-| `0x801C5860` | 63 | 51 | GX write-gather FIFO |  |
-| `0x801C8130` | 63 | 34 |  |  |
-| `0x801C47D0` | 62 | 43 |  |  |
-| `0x801C4070` | 61 | 52 |  |  |
-| `0x801C8110` | 61 | 51 |  |  |
-| `0x801C74C0` | 61 | 34 |  |  |
+| `0x801C5860` | 63 | 51 | GX write-gather FIFO | hook: GX__SetCullMode_8016f3b8 |
+| `0x801C8130` | 63 | 34 |  | hook: GX__SetTevDirect_80171b58 |
+| `0x801C47D0` | 62 | 43 |  | hook: GX__SetTexCoordGen2_8016e37c |
+| `0x801C4070` | 61 | 52 |  | hook: GX__ClearVtxDesc_8016dc34 |
+| `0x801C8110` | 61 | 51 |  | hook: GX__SetNumIndStages_80171b38 |
+| `0x801C74C0` | 61 | 34 |  | hook: GX__LoadTexObj_80170f2c |
 | `0x801D5540` | 61 | 42 | DSP |  |
-| `0x801C9940` | 58 | 56 | GX write-gather FIFO |  |
-| `0x801C6AC0` | 57 | 47 |  |  |
-| `0x801C9A60` | 57 | 52 |  |  |
-| `0x801C8E70` | 54 | 51 | GX write-gather FIFO |  |
-| `0x801C86C0` | 52 | 49 | GX write-gather FIFO |  |
-| `0x801C8920` | 50 | 40 | GX write-gather FIFO |  |
-| `0x801C8EB0` | 44 | 41 | GX write-gather FIFO |  |
+| `0x801C9940` | 58 | 56 | GX write-gather FIFO | hook: GX__LoadPosMtxImm_8017310c |
+| `0x801C6AC0` | 57 | 47 |  | hook: GX__SetNumChans_8017054c |
+| `0x801C9A60` | 57 | 52 |  | hook: GX__SetCurrentMtx_80173214 |
+| `0x801C8E70` | 54 | 51 | GX write-gather FIFO | hook: GX__SetZMode_80172824 |
+| `0x801C86C0` | 52 | 49 | GX write-gather FIFO | hook: GX__SetAlphaCompare_80172088 |
+| `0x801C8920` | 50 | 40 | GX write-gather FIFO | hook: GX__SetFog_801722cc |
+| `0x801C8EB0` | 44 | 41 | GX write-gather FIFO | hook: GX__SetZCompLoc_80172858 |
 | `0x801C14C0` | 41 | 31 |  |  |
 | `0x801C0C60` | 40 | 34 |  |  |
 | `0x801C07A0` | 37 | 30 |  |  |
@@ -78,28 +78,237 @@ The SDK band holds 2,130 function starts. Game and engine code calls 315 of them
 | `0x801AB640` | 27 | 16 |  |  |
 | `0x801D49A0` | 25 | 25 |  |  |
 | `0x801D4460` | 25 | 25 |  |  |
-| `0x801AC500` | 21 | 8 |  |  |
+| `0x801AC500` | 21 | 8 |  | hook: DCStoreRangeNoSync_801a16b8 |
 | `0x801C1350` | 20 | 20 |  |  |
-| `0x801C8E40` | 19 | 16 | GX write-gather FIFO |  |
+| `0x801C8E40` | 19 | 16 | GX write-gather FIFO | hook: GX__SetAlphaUpdate_801727f8 |
 | `0x801B2E20` | 19 | 16 |  |  |
-| `0x801C9840` | 18 | 18 |  |  |
-| `0x801B4B30` | 18 | 13 |  |  |
-| `0x801C6D90` | 18 | 18 |  |  |
+| `0x801C9840` | 18 | 18 |  | hook: GX__SetProjection_8017301c |
+| `0x801B4B30` | 18 | 13 |  | hook: OS__GetCurrentThread_801a98b0_hle |
+| `0x801C6D90` | 18 | 18 |  | hook: GX__InitTexObj_801707f8 |
 | `0x801C0C10` | 17 | 11 |  |  |
-| `0x801C9A80` | 16 | 14 | GX write-gather FIFO |  |
-| `0x801C6FF0` | 16 | 16 |  |  |
-| `0x801C69E0` | 16 | 12 |  |  |
-| `0x801C95E0` | 16 | 9 | GX write-gather FIFO |  |
+| `0x801C9A80` | 16 | 14 | GX write-gather FIFO | hook: GX__LoadTexMtxImm_80173234 |
+| `0x801C6FF0` | 16 | 16 |  | hook: GX__InitTexObjLOD_80170a4c |
+| `0x801C69E0` | 16 | 12 |  | hook: GX__SetChanMatColor_80170474 |
+| `0x801C95E0` | 16 | 9 | GX write-gather FIFO | hook: GX__CallDisplayList_80172f64 |
 | `0x801D4860` | 15 | 15 |  |  |
 | `0x801AB540` | 15 | 11 |  | OSSetAlarm |
-| `0x801C9C60` | 14 | 13 |  |  |
-| `0x801C8250` | 14 | 8 | GX write-gather FIFO |  |
-| `0x801C8E10` | 13 | 13 | GX write-gather FIFO |  |
+| `0x801C9C60` | 14 | 13 |  | hook: GX__SetScissor_80173430 |
+| `0x801C8250` | 14 | 8 | GX write-gather FIFO | hook: GX__SetTevOp_80171c4c |
+| `0x801C8E10` | 13 | 13 | GX write-gather FIFO | hook: GX__SetColorUpdate_801727cc |
 | `0x801E1E20` | 13 | 10 |  |  |
 | `0x801BCCF0` | 12 | 7 |  | VIWaitForRetrace |
 | `0x801B2390` | 12 | 9 |  | OSInitMessageQueue |
 
-## Coverage against the located hooks
+Of the 315 SDK functions game code calls directly, 94 are replaced by a runtime hook for this game; the others run as translated code.
 
-`docs/nsmbw/hle-hooks.md` places 43 functions at SMNE01 addresses; 27 of them are called directly from game code. The runtime registers 583 hooks, so most of the SDK surface above has no known counterpart yet. The GX library is the largest group: 92 functions inside the SDK band write the FIFO, and the game calls dozens of the state setters, matrix functions and texture loaders directly.
+## Runtime hook coverage
+
+The runtime registers 583 hooks at Mario Kart Wii addresses (all off for this game: `runtime.native_hooks: false`) and 259 at SMNE01 addresses in `runtime/src/hle/profiles/smne01`. A shared hook counts as ported when the profile registers the same implementation. `gx/gx_fatal_stubs.cpp` holds stops for GX functions Mario Kart Wii never calls; here those functions run translated, so they are not ported.
+
+| Source file | Shared hooks | Ported | GX stops | Not ported |
+| --- | --- | --- | --- | --- |
+| `audio/audio.cpp` | 23 | 21 | 0 | 2 |
+| `audio/ax_effects.cpp` | 1 | 0 | 0 | 1 |
+| `c_stdio.cpp` | 1 | 0 | 0 | 1 |
+| `egg_decomp.cpp` | 1 | 0 | 0 | 1 |
+| `esp.cpp` | 4 | 0 | 0 | 4 |
+| `gx/gx_copy.cpp` | 8 | 8 | 0 | 0 |
+| `gx/gx_dl.cpp` | 3 | 1 | 0 | 2 |
+| `gx/gx_egg.cpp` | 4 | 0 | 0 | 4 |
+| `gx/gx_fatal_stubs.cpp` | 205 | 0 | 205 | 0 |
+| `gx/gx_indirect.cpp` | 7 | 7 | 0 | 0 |
+| `gx/gx_init.cpp` | 9 | 9 | 0 | 0 |
+| `gx/gx_lighting.cpp` | 5 | 5 | 0 | 0 |
+| `gx/gx_pixel.cpp` | 14 | 14 | 0 | 0 |
+| `gx/gx_stubs.cpp` | 13 | 12 | 0 | 1 |
+| `gx/gx_tev.cpp` | 14 | 14 | 0 | 0 |
+| `gx/gx_texture.cpp` | 24 | 16 | 0 | 8 |
+| `gx/gx_transform.cpp` | 15 | 14 | 0 | 1 |
+| `gx/gx_vertex.cpp` | 20 | 17 | 0 | 3 |
+| `input/kpad.cpp` | 2 | 1 | 0 | 1 |
+| `input/pad.cpp` | 5 | 0 | 0 | 5 |
+| `input/wpad.cpp` | 15 | 12 | 0 | 3 |
+| `ios.cpp` | 7 | 7 | 0 | 0 |
+| `net/network_config.cpp` | 1 | 0 | 0 | 1 |
+| `os/os_alarm.cpp` | 3 | 2 | 0 | 1 |
+| `os/os_cache.cpp` | 19 | 19 | 0 | 0 |
+| `os/os_context.cpp` | 4 | 4 | 0 | 0 |
+| `os/os_init.cpp` | 29 | 5 | 0 | 24 |
+| `os/os_interrupt.cpp` | 21 | 17 | 0 | 4 |
+| `os/os_message.cpp` | 4 | 3 | 0 | 1 |
+| `os/os_report.cpp` | 1 | 0 | 0 | 1 |
+| `os/os_reset.cpp` | 4 | 0 | 0 | 4 |
+| `os/os_scheduler.cpp` | 4 | 4 | 0 | 0 |
+| `os/os_sleep.cpp` | 2 | 1 | 0 | 1 |
+| `os/os_thread.cpp` | 7 | 7 | 0 | 0 |
+| `os/os_time.cpp` | 2 | 0 | 0 | 2 |
+| `sc.cpp` | 9 | 1 | 0 | 8 |
+| `storage/dvd.cpp` | 11 | 8 | 0 | 3 |
+| `storage/nand_api.cpp` | 17 | 0 | 0 | 17 |
+| `storage/nand_async.cpp` | 16 | 0 | 0 | 16 |
+| `storage/nand_isfs.cpp` | 9 | 7 | 0 | 2 |
+| `strap_scene.cpp` | 1 | 0 | 0 | 1 |
+| `task_thread.cpp` | 1 | 0 | 0 | 1 |
+| `trk.cpp` | 1 | 0 | 0 | 1 |
+| `vi.cpp` | 17 | 14 | 0 | 3 |
+| **Total** | 583 | 250 | 205 | 128 |
+
+Hooks not ported, by reason (from `NOT_PORTED` in the script):
+
+| Reason | Hooks |
+| --- | --- |
+| Mario Kart Wii only | 12 |
+| Covered by a lower layer | 56 |
+| Runs translated (no hook needed so far) | 50 |
+| To port (not located) | 10 |
+
+### To port (not located)
+
+| Implementation | Mario Kart Wii address | Source file | Note |
+| --- | --- | --- | --- |
+| `AIGetDSPSampleRate_8012409c` | `0x8012409C` | `audio/audio.cpp` | audio sample rate |
+| `AXFXReverbStdExpCallback_8012b830` | `0x8012B830` | `audio/ax_effects.cpp` | reverb effect callback |
+| `KPAD__GetUnifiedWpadStatus_HLE` | `0x8019812C` | `input/kpad.cpp` | unified controller status |
+| `WPADGetDpdSensitivity_HLE` | `0x801C329C` | `input/wpad.cpp` | pointer sensitivity |
+| `OSFatal_HLE_801a4ec4` | `0x801A4EC4` | `os/os_init.cpp` | fatal error screen |
+| `OS__Report_801a25d0` | `0x801A25D0` | `os/os_report.cpp` | debug report output |
+| `Exit_801AE58C` | `0x801AE58C` | `os/os_reset.cpp` | exit |
+| `OSResetSystem` | `0x801A8A80` | `os/os_reset.cpp` | reset and return to the Wii Menu |
+| `OS__Panic_801A2660_Cpu` | `0x801A2660` | `os/os_reset.cpp` | panic |
+| `PPCHalt_8012E5A4` | `0x8012E5A4` | `os/os_reset.cpp` | halt after a fatal error |
+
+### Runs translated (no hook needed so far)
+
+| Implementation | Mario Kart Wii address | Source file | Note |
+| --- | --- | --- | --- |
+| `ConsoleWrite_HLE_80015500` | `0x80015500` | `c_stdio.cpp` | debug console output |
+| `EGG_Decomp_decodeSZS_80218c2c` | `0x80218C2C` | `egg_decomp.cpp` | speed-up only; the translated decoder works |
+| `nw4r__lyt__detail__DrawQuad_800847c0` | `0x800847C0` | `gx/gx_dl.cpp` | Mario Kart Wii's inlined copy |
+| `nw4r__lyt__detail__DrawQuad_80084d20` | `0x80084D20` | `gx/gx_dl.cpp` | Mario Kart Wii's inlined copy |
+| `EGG__AsyncDisplay__endRender_HLE_8020ff9c` | `0x8020FF9C` | `gx/gx_egg.cpp` | Mario Kart Wii's EGG build |
+| `EGG__DrawGX__SetVtxState_HLE` | `0x8021B344` | `gx/gx_egg.cpp` | Mario Kart Wii's EGG build |
+| `EGG__DrawGX__SetVtxState_HLE` | `0x8021B688` | `gx/gx_egg.cpp` | Mario Kart Wii's EGG build |
+| `EGG__LightTexture__SetupTevFinish_HLE_8022e2bc` | `0x8022E2BC` | `gx/gx_egg.cpp` | Mario Kart Wii's EGG build |
+| `GX__SetDrawSync_8016e9fc` | `0x8016E9FC` | `gx/gx_stubs.cpp` | GX state setter |
+| `GX__SetZScaleOffset_80173400` | `0x80173400` | `gx/gx_transform.cpp` | GX state setter |
+| `PAD__ControlMotor_HLE` | `0x801AF908` | `input/pad.cpp` | GameCube pad; not reached by this game so far |
+| `PAD__Init_HLE` | `0x801AF2F0` | `input/pad.cpp` | GameCube pad; not reached by this game so far |
+| `PAD__Read_HLE` | `0x801AF44C` | `input/pad.cpp` | GameCube pad; not reached by this game so far |
+| `PAD__Recalibrate_HLE` | `0x801AF1E4` | `input/pad.cpp` | GameCube pad; not reached by this game so far |
+| `PAD__Reset_HLE` | `0x801AF0DC` | `input/pad.cpp` | GameCube pad; not reached by this game so far |
+| `WPADInitSub_HLE` | `0x801BF3B4` | `input/wpad.cpp` | remote set-up; input works |
+| `WUDGetStatus_HLE` | `0x801CDB84` | `input/wpad.cpp` | Bluetooth status; input works |
+| `BTM_IsDeviceUp_HLE_8013a300` | `0x8013A300` | `os/os_init.cpp` | Bluetooth stack; input is answered at WPAD level |
+| `GKI_delay_HLE_801301b4` | `0x801301B4` | `os/os_init.cpp` | Bluetooth stack; input is answered at WPAD level |
+| `OS__GetConsoleType_8019f33c` | `0x8019F33C` | `os/os_init.cpp` | start-up |
+| `OS____PSInit_801a04a0` | `0x801A04A0` | `os/os_init.cpp` | start-up |
+| `PPCDisableSpeculation_8012e654` | `0x8012E654` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMfhid0_8012e574` | `0x8012E574` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMfhid2_HLE_8012e630` | `0x8012E630` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMfwpar_8012e640` | `0x8012E640` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMtdec_8012e594` | `0x8012E594` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMthid0_8012e57c` | `0x8012E57C` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMthid2_8012e638` | `0x8012E638` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMthid4_8012e684` | `0x8012E684` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMtmmcr0_8012e5b8` | `0x8012E5B8` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMtmmcr1_8012e5c0` | `0x8012E5C0` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMtpmc1_8012e5c8` | `0x8012E5C8` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMtpmc2_8012e5d0` | `0x8012E5D0` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMtpmc3_8012e5d8` | `0x8012E5D8` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMtpmc4_8012e5e0` | `0x8012E5E0` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCMtwpar_8012e64c` | `0x8012E64C` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `PPCSync_8012e59c` | `0x8012E59C` | `os/os_init.cpp` | processor register accessor; the translator handles the instruction |
+| `__init_hardware_80006348` | `0x80006348` | `os/os_init.cpp` | start-up |
+| `OSSetPowerCallback_801ab75c` | `0x801AB75C` | `os/os_interrupt.cpp` | power button callback |
+| `OS__ExceptionInit_801a00e0` | `0x801A00E0` | `os/os_interrupt.cpp` | start-up |
+| `OS__JamMessage_HLE_801a7500` | `0x801A7500` | `os/os_message.cpp` | message queue; send and receive are hooked |
+| `OS__SleepTicks_HLE_801aaca8` | `0x801AACA8` | `os/os_sleep.cpp` | inlined in this build |
+| `OS__GetTime_HLE` | `0x801AAD5C` | `os/os_time.cpp` | time base read by translated mftb |
+| `OS____GetSystemTime_801aad7c` | `0x801AAD7C` | `os/os_time.cpp` | time base read by translated mftb |
+| `SCGetEuRgb60Mode_HLE` | `0x801B1CAC` | `sc.cpp` | the SC library reads SYSCONF |
+| `SCGetProductArea_HLE` | `0x801B23A0` | `sc.cpp` | the SC library reads setting.txt |
+| `SCGetProductCode_HLE` | `0x801B2424` | `sc.cpp` | the SC library reads setting.txt |
+| `SCGetProductGameRegion_HLE` | `0x801B24C8` | `sc.cpp` | the SC library reads setting.txt |
+| `SCGetProductSN_HLE` | `0x801B2460` | `sc.cpp` | the SC library reads setting.txt |
+| `StrapScene__CheckInput_Skip` | `0x800077C8` | `strap_scene.cpp` | stand-in in vi.cpp after 30 frames |
+
+### Covered by a lower layer
+
+| Implementation | Mario Kart Wii address | Source file | Note |
+| --- | --- | --- | --- |
+| `ESP_CloseLib_stub` | `0x80167224` | `esp.cpp` | /dev/es ioctls are answered |
+| `ESP_GetDataDir_stub` | `0x80167904` | `esp.cpp` | /dev/es ioctls are answered |
+| `ESP_GetTitleId_stub` | `0x8016799C` | `esp.cpp` | /dev/es ioctls are answered |
+| `ESP_InitLib_stub` | `0x801671D0` | `esp.cpp` | /dev/es ioctls are answered |
+| `GX__InitTexObj_caseD_0_8017093c` | `0x8017093C` | `gx/gx_texture.cpp` | label inside the hooked GXInitTexObj |
+| `GX__InitTexObj_caseD_1_80170950` | `0x80170950` | `gx/gx_texture.cpp` | label inside the hooked GXInitTexObj |
+| `GX__InitTexObj_caseD_3_80170964` | `0x80170964` | `gx/gx_texture.cpp` | label inside the hooked GXInitTexObj |
+| `GX__InitTexObj_caseD_6_80170978` | `0x80170978` | `gx/gx_texture.cpp` | label inside the hooked GXInitTexObj |
+| `GX__InitTexObj_caseD_7_801709a0` | `0x801709A0` | `gx/gx_texture.cpp` | label inside the hooked GXInitTexObj |
+| `GX__InitTexObj_caseD_e_8017098c` | `0x8017098C` | `gx/gx_texture.cpp` | label inside the hooked GXInitTexObj |
+| `GX__InitTexObj_switch_80170938` | `0x80170938` | `gx/gx_texture.cpp` | label inside the hooked GXInitTexObj |
+| `GX__SetArray_8016e1c4` | `0x8016E1C4` | `gx/gx_vertex.cpp` | switch artifact; GXSetArray itself is hooked |
+| `IPCReadReg_80193010` | `0x80193010` | `os/os_interrupt.cpp` | IOS requests are hooked above the IPC registers |
+| `IPCWriteReg_80193020` | `0x80193020` | `os/os_interrupt.cpp` | IOS requests are hooked above the IPC registers |
+| `SCCheckStatus_HLE` | `0x801B0220` | `sc.cpp` | replaced by SCCheckStatus_SMNE01, which runs the original |
+| `DVDLowReadDiskID_80164AAC` | `0x80164AAC` | `storage/dvd.cpp` | disc reads are hooked at the DVD level |
+| `DVDLowRead_80166330` | `0x80166330` | `storage/dvd.cpp` | disc reads are hooked at the DVD level |
+| `DVDLowUnencryptedRead_80165708` | `0x80165708` | `storage/dvd.cpp` | disc reads are hooked at the DVD level |
+| `NANDCheck_HLE` | `0x8019EAD0` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDClose_HLE` | `0x8019CA80` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDCreateDir_HLE` | `0x8019BBE0` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDCreate_HLE` | `0x8019B43C` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDDelete_HLE` | `0x8019B59C` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDGetCurrentDir_HLE` | `0x8019E390` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDGetLength_HLE` | `0x8019BF4C` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDGetStatus_HLE` | `0x8019C380` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDGetType_HLE` | `0x8019E770` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDInit_HLE` | `0x8019E18C` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDMove_HLE` | `0x8019BEE8` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDOpen_HLE` | `0x8019C800` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDRead_HLE` | `0x8019B7A4` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDSeek_HLE` | `0x8019B964` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDWrite_HLE` | `0x8019B884` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `contentFastOpenNAND_HLE` | `0x8015BC80` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `contentReadNAND_HLE` | `0x8015BCF8` | `storage/nand_api.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDCloseAsync_HLE` | `0x8019CAEC` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDGetLengthAsync_HLE` | `0x8019C048` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDOpenAsync_HLE` | `0x8019C918` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDPrivateCreateAsync_HLE` | `0x8019B524` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDPrivateCreateDirAsync_HLE` | `0x8019BCC8` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDPrivateDeleteAsync_HLE` | `0x8019B6E4` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDPrivateGetStatusAsync_HLE` | `0x8019C448` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDPrivateGetTypeAsync_HLE` | `0x8019E7B4` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDPrivateOpenAsync_HLE` | `0x8019C990` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDPrivateSafeOpenAsync_HLE` | `0x8019D104` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDReadAsync_HLE` | `0x8019B80C` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDSafeCloseAsync_HLE` | `0x8019D720` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDSafeClose_HLE` | `0x8019CF28` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDSafeOpen_HLE` | `0x8019CB74` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDSeekAsync_HLE` | `0x8019BA04` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `NANDWriteAsync_HLE` | `0x8019B8EC` | `storage/nand_async.cpp` | the NAND library runs translated on top of the hooked IOS calls |
+| `ISFS_OpenLib_HLE_80169BCC` | `0x80169BCC` | `storage/nand_isfs.cpp` | runs translated on top of the hooked IOS calls |
+| `NAND_IOS_OpenBody_HLE_801938FC` | `0x801938FC` | `storage/nand_isfs.cpp` | inner label of IOS_Open |
+| `VIInit_caseD_0_HLE_801b9934` | `0x801B9934` | `vi.cpp` | label inside the hooked VIInit |
+| `VIInit_caseD_1_HLE_801b993c` | `0x801B993C` | `vi.cpp` | label inside the hooked VIInit |
+| `VIInit_caseD_2_HLE_801b9944` | `0x801B9944` | `vi.cpp` | label inside the hooked VIInit |
+
+### Mario Kart Wii only
+
+| Implementation | Mario Kart Wii address | Source file | Note |
+| --- | --- | --- | --- |
+| `SoundPlayerSetVolume_800a35e0` | `0x800A35E0` | `audio/audio.cpp` | game code |
+| `GX__InitTexObjLODBias_80170b94` | `0x80170B94` | `gx/gx_texture.cpp` | not in this SDK build |
+| `GX__End_80044b30` | `0x80044B30` | `gx/gx_vertex.cpp` | inlined in game code |
+| `GX__End_80048c30` | `0x80048C30` | `gx/gx_vertex.cpp` | inlined in game code |
+| `NHTTPStartup_Reentrant_HLE_801d8d30` | `0x801D8D30` | `net/network_config.cpp` | NHTTP is not linked |
+| `RFLiIsWorking_HLE_800bd860` | `0x800BD860` | `os/os_alarm.cpp` | RFL is not linked |
+| `OSInitAlarm_RecompModLateInit_801a961c` | `0x801A961C` | `os/os_init.cpp` | mod loader hook |
+| `StaticRProlog_RecompModInit_8055531c` | `0x8055531C` | `os/os_init.cpp` | mod loader hook |
+| `OS__CheckInstall` | `0x801AD1D4` | `sc.cpp` | channel install check |
+| `OS__IsTitleInstalled` | `0x801AE4A0` | `sc.cpp` | channel install check |
+| `TaskThread_run_HLE_80242d7c` | `0x80242D7C` | `task_thread.cpp` | Mario Kart Wii's EGG build |
+| `Stub_8002001C` | `0x8002001C` | `trk.cpp` | debugger stub |
+
+Hooks written for this game only (7): `EXILock_HLE_801B9D70`, `KPAD__ReadEx_HLE_801ED3B0`, `OSGetFontEncode_HLE_801B00A0`, `OSReadROM_HLE_801B4310`, `OSSetProgressiveMode_HLE_801b00f0`, `SCCheckStatus_SMNE01`, `WUDIsReady_HLE_801FCF30`.
 
