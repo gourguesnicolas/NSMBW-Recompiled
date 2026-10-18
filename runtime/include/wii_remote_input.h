@@ -52,6 +52,11 @@ struct KpadSample {
     int16_t clRStickRaw[2] = {};
     uint8_t clTriggerL = 0;      // 0..255; SDL only exposes the digital click
     uint8_t clTriggerR = 0;
+    // IR pointer, in KPAD's screen frame: x -1 (left) .. 1 (right), y -1 (top) .. 1 (bottom). Valid when
+    // the remote points at the screen (here: the mouse or a stick drives it, see PointerInput).
+    bool pointerValid = false;
+    float pointer[2] = {};
+    float pointerStick[2] = {};  // a gamepad's right stick, -1..1 (+y up), for PointerInput to move with
 };
 
 // What the game should see on `chan`: the controller SDL has there right now,

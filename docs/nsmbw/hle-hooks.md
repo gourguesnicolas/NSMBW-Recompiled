@@ -211,6 +211,18 @@ Not hooked yet: `WPADGetDpdSensitivity`, `KPADGetUnifiedWpadStatus` (not called 
 that was read), the second simple-sync entry `0x801DFAE0`, and the GameCube pad calls (`PADInit` and
 friends: not reached so far).
 
+IR pointer (#24, `runtime/src/hle/input/pointer_input.cpp`): neither SDL's Wii driver nor the virtual
+remote has IR data, so `KPADStatus` always said "pointing away" (`dpd_valid_fg` 0). For the first remote,
+the mouse now points:
+- position over the game picture, mapped to KPAD's -1..1 frame (y down);
+- left button = A and right button = B over the picture;
+- a gamepad's right stick moves the pointer too.
+The hook writes `pos`, `vec`, `speed`, a level `horizon` (1, 0), a nominal `dist` and `dpd_valid_fg` 2. The
+pointer leaves the screen after 5 s without movement or when the mouse leaves the picture.
+
+Where the game reads it: the HOME Menu (HBM) needs it for every button. The title screen, file select,
+world map and levels are driven with the buttons; no other pointer screen has been seen so far.
+
 ## Audio interface, DSP and AX task, registered in `profiles/smne01/audio_hooks.cpp` (#16)
 
 Same implementations as Mario Kart Wii; the statics are per game (`audio.cpp`, `ax_internal.h`).
@@ -316,6 +328,24 @@ Checked with a temporary local trigger that called each guest function from the 
 - `OSReturnToMenu` and `OSShutdownSystem` close the runtime.
 - `OSRestart` starts a new instance.
 - `OSPanic` and `OSFatal` log the message and exit.
+
+Then through the HOME Menu with the pointer (#24): HOME, "Menu Wii", "Oui" closes the runtime. Two more fixes
+were needed on that path:
+- The game's reset sequence (`0x80108C60`) calls `GXAbortFrame` (`0x801C4CE0`, below) before
+  `OSReturnToMenu`.
+- The process did not end: `std::exit` from the guest's fiber runs static destructors that own running
+  threads (the transcript pumps, aurora's pipeline workers), and a joinable `std::thread` destructor calls
+  `std::terminate`, whose handler opened a hidden fatal popup. `ExitRuntimeFromGuest` (`main.cpp`) now
+  writes what must reach the disk (window placement, transcript, C streams) and ends with `std::_Exit`.
+  The transcript also stops itself at exit (`std::atexit`) for the other `std::exit` callers.
+
+"Réinitialisation" in the HOME Menu is the game's own soft reset: it goes back to the title screen without
+calling the OS.
+
+`GXAbortFrame` (`0x801C4CE0`, registered in `gx_hooks.cpp`) resets the command FIFO through the
+processor-interface register `0xCC003018`, a write the runtime blocks; the guest-memory exception that
+followed, unwound across a fiber, ended in `0xC00000FF`. There is no hardware FIFO behind aurora, so the
+hook does nothing. It is called from the game's reset sequence and from `OSFatal`.
 
 The eight Mario Kart Wii functions the shared HLE called by address (`runtime/src/hle/mkw_guest_callbacks.cpp`):
 - Alarm insertion (`0x801A0620`), the periodic-alarm time helper (`0x801AADE0`) and `OSSaveContext`

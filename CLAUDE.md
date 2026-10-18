@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#81 merged; PR #82 open: leaving the game cleanly, closes #79).
+Last updated: 2026-10-18 (#82 merged; PR open: IR pointer from the mouse, HOME Menu usable, closes #24).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -78,7 +78,12 @@ Last updated: 2026-10-18 (#81 merged; PR #82 open: leaving the game cleanly, clo
   `runtime/src/hle/input/gamepad_as_remote.cpp` makes a virtual remote held sideways: arrows or D-pad/stick
   move, Space or X (pad A) = "2" (jump), Left Shift or Z (pad B) = "1" (run), Enter = A, Backspace = B,
   P = +, M = -, H = Home. It is compiled in only for the `smne01` profile. This is what lets the save dialog
-  be answered; `MKW_TRACE_INPUT=1` prints what the game is told.
+  be answered; `MKW_TRACE_INPUT=1` prints what the game is told. **IR pointer (#24)**: the mouse points over
+  the game picture (left click = A, right click = B) and a gamepad's right stick moves it too
+  (`hle/input/pointer_input.cpp`). The HOME Menu works with it: "Menu Wii" -> "Oui" closes the runtime, and
+  "Réinitialisation" is the game's own soft reset to the title screen. To drive the game from a script, press
+  Alt before `SetForegroundWindow` (Windows refuses focus to a background process otherwise), then use
+  `keybd_event`/`SetCursorPos`/`mouse_event`.
 - **Music (BRSTM streams) was silent; fixed.** Sound effects played, music did not. `OSInit` starts the SDK
   drive state machine, which sent `DVDLowClearCoverInterrupt`/`DVDLowInquiry` to `/dev/di` on fd -1 (the
   DVD HLE never opens it); the bad reply ended in `cbForStateError` setting the driver's fatal-error flag,
@@ -137,10 +142,12 @@ Last updated: 2026-10-18 (#81 merged; PR #82 open: leaving the game cleanly, clo
   `__OSHotReset` start a new instance), with IOS-level fallbacks (STM hot reset/shutdown, `IOS_IoctlvReboot`
   for `ES_LaunchTitle`). `PPCHalt`, `OSPanic`, `OSFatal` report and exit; `OSReport` (`0x8015F730`) now logs the
   SDK banners and the game's warnings. Table and evidence in `docs/nsmbw/hle-hooks.md`. Checked by calling each
-  guest function from a temporary local trigger; not yet through the HOME menu (needs the pointer, #24).
+  guest function from a temporary local trigger, then through the HOME Menu with the pointer: that path
+  also needed `GXAbortFrame` (`0x801C4CE0`, no-op) and `ExitRuntimeFromGuest` (`std::exit` from the guest's
+  fiber hit a joinable static `std::thread` and a hidden terminate popup; see `hle-hooks.md`).
   The game calls 315 SDK functions directly; 94 are hooked. A new hook missing from `NOT_PORTED` shows up as
   "Unclassified" when the report is regenerated.
-- **Open PRs**: #82 (leaving the game cleanly, closes #79).
+- **Open PRs**: IR pointer (closes #24).
 - **Open issues to keep open**: #16 (first launch), #80 (input), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit),
   #6 (licence of the symbol sources).
@@ -174,12 +181,12 @@ values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there
 ### Next steps (in order)
 1. **Check the picture** in levels against the real game (animated tiles after the fix, enemies, effects);
    audit the remaining GX hooks by body (list above).
-2. **Audio by ear**: the user confirms music in menus and levels; check tempo, pitch and the reverb
-   (the AXFX callback is not located).
-3. **Pointer (#24)**: needed for the HOME menu buttons and menus; then check "Wii Menu"/"Reset" by hand.
+2. **Audio by ear and #25**: the user confirms music in menus and levels; locate `AIGetDSPSampleRate` and
+   the AXFX reverb callback (tempo, pitch, reverb).
+3. **#80**: `KPADGetUnifiedWpadStatus`, `WPADGetDpdSensitivity` (the pointer works without them).
 4. Faithful strap-scene hook; GameCube pad when reached.
-5. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
-   `KPADGetUnifiedWpadStatus`, the NAND API level.
+5. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback (#25), `WPADGetDpdSensitivity`,
+   `KPADGetUnifiedWpadStatus` (#80). The NAND API level needs no hook (it runs translated on the hooked IOS calls).
 6. Determinism audit (#15); M2 exit: the title screen and a level are playable.
 
 ### Do not forget
