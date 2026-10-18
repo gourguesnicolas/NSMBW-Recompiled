@@ -1,4 +1,4 @@
-﻿# CLAUDE.md
+# CLAUDE.md
 
 NSMBW-Recompiled is a static recompilation of New Super Mario Bros. Wii (USA, `SMNE01` revision 2),
 forked from WiiCompiled (GPL-3.0). Read `docs/nsmbw/architecture.md` and `docs/nsmbw/roadmap.md`
