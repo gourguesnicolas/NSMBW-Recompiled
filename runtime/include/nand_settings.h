@@ -10,6 +10,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #ifdef _WIN32
@@ -21,6 +22,38 @@
 namespace RuntimeNandSettings {
 
 using Settings = std::map<std::string, std::string>;
+
+// The console region a new NAND gets, from the disc's game code (its fourth character).
+enum class Region { Japan, Usa, Europe, Korea };
+
+inline Region RegionFromGameCode(std::string_view gameCode) {
+    if (gameCode.size() < 4) {
+        return Region::Europe;
+    }
+    switch (gameCode[3]) {
+    case 'J': return Region::Japan;
+    case 'E': return Region::Usa;
+    case 'K': case 'Q': case 'T': return Region::Korea;
+    default: return Region::Europe;
+    }
+}
+
+// Dolphin's per-region first-boot identity fields (MODEL is "RVL-001(<AREA>)").
+struct RegionFields {
+    const char* area;
+    const char* code;
+    const char* video;
+    const char* game;
+};
+
+inline RegionFields FieldsFor(Region region) {
+    switch (region) {
+    case Region::Japan: return {"JPN", "LJ", "NTSC", "JP"};
+    case Region::Usa: return {"USA", "LU", "NTSC", "US"};
+    case Region::Korea: return {"KOR", "LKH", "NTSC", "KR"};
+    default: return {"EUR", "LEH", "PAL", "EU"};
+    }
+}
 
 inline std::filesystem::path FilePath(const std::filesystem::path& root) {
     return root / "title/00000001/00000002/data/setting.txt";
@@ -88,13 +121,17 @@ inline std::string GenerateSerial(std::time_t now) {
     return std::string(9 - digits.size(), '0') + digits;
 }
 
-// This recompilation targets the European disc. These are Dolphin's PAL boot
-// defaults; an existing setting.txt always takes precedence, in every region.
-inline std::optional<std::array<uint8_t, 256>> EncodeNew(const std::string& serial) {
-    const Settings identity{{"SERNO", serial}, {"CODE", "LEH"}, {"AREA", "EUR"}, {"GAME", "EU"}};
+// Dolphin's boot defaults for the disc's region (PAL unless told otherwise); an existing
+// setting.txt always takes precedence, in every region.
+inline std::optional<std::array<uint8_t, 256>> EncodeNew(const std::string& serial,
+                                                         Region region = Region::Europe) {
+    const RegionFields fields = FieldsFor(region);
+    const Settings identity{{"SERNO", serial}, {"CODE", fields.code}, {"AREA", fields.area},
+                            {"GAME", fields.game}};
     if (!HasIdentity(identity)) {
         return std::nullopt;
     }
+    const std::string area = fields.area;
     std::array<uint8_t, 256> bytes{};
     size_t position = 0;
     uint32_t key = 0x73B5DBFAu;
@@ -102,9 +139,10 @@ inline std::optional<std::array<uint8_t, 256>> EncodeNew(const std::string& seri
         bytes[position++] = static_cast<uint8_t>(value) ^ static_cast<uint8_t>(key);
         key = (key << 1) | (key >> 31);
     };
-    for (const std::string& line : {std::string("AREA=EUR\r\n"), std::string("MODEL=RVL-001(EUR)\r\n"),
-             std::string("DVD=0\r\n"), std::string("MPCH=0x7FFE\r\n"), std::string("CODE=LEH\r\n"),
-             "SERNO=" + serial + "\r\n", std::string("VIDEO=PAL\r\n"), std::string("GAME=EU\r\n")}) {
+    for (const std::string& line : {"AREA=" + area + "\r\n", "MODEL=RVL-001(" + area + ")\r\n",
+             std::string("DVD=0\r\n"), std::string("MPCH=0x7FFE\r\n"), std::string("CODE=") + fields.code + "\r\n",
+             "SERNO=" + serial + "\r\n", std::string("VIDEO=") + fields.video + "\r\n",
+             std::string("GAME=") + fields.game + "\r\n"}) {
         for (;;) {
             if (position + line.size() > bytes.size()) {
                 return std::nullopt;
@@ -146,7 +184,7 @@ inline std::optional<std::filesystem::path> CreateScratchDirectory(
 // Never replace an existing file, including an unreadable or damaged one.
 // Publish a complete file atomically so simultaneous launches use one identity.
 inline bool Ensure(const std::filesystem::path& root, std::string& error,
-                   std::time_t now = std::time(nullptr)) {
+                   std::time_t now = std::time(nullptr), Region region = Region::Europe) {
     const auto path = FilePath(root);
     std::error_code ec;
     const auto status = std::filesystem::symlink_status(path, ec);
@@ -163,7 +201,7 @@ inline bool Ensure(const std::filesystem::path& root, std::string& error,
         return false;
     }
 
-    const auto bytes = EncodeNew(GenerateSerial(now));
+    const auto bytes = EncodeNew(GenerateSerial(now), region);
     if (!bytes) {
         error = "Cannot initialize NAND settings: invalid system clock";
         return false;

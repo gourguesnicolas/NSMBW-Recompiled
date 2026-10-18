@@ -2,6 +2,7 @@
 
 #include "runtime_config.h"
 #include "nand_settings.h"
+#include "nand_sysconf.h"
 #include "runtime_log.h"
 #include "system_bridge.h"
 
@@ -180,12 +181,46 @@ inline std::filesystem::path ResolveNandRootPath() {
     return CreateManagedNandRoot();
 }
 
+// The disc's game code (sys/boot.bin starts with it), or empty when the extracted disc has none.
+inline std::string DiscGameCode() {
+    const auto dvdRoot = RuntimeConfigFile::ResolvedDvdRoot();
+    if (dvdRoot.empty()) {
+        return {};
+    }
+    std::ifstream input(dvdRoot / "sys" / "boot.bin", std::ios::binary);
+    std::string code(4, '\0');
+    if (!input.read(code.data(), static_cast<std::streamsize>(code.size()))) {
+        return {};
+    }
+    return code;
+}
+
+inline std::optional<uint8_t> ConfiguredSystemLanguage() {
+    const auto name = RuntimeConfigFile::SystemLanguage();
+    if (!name) {
+        return std::nullopt;
+    }
+    const auto code = RuntimeNandSysconf::LanguageCode(*name);
+    if (!code) {
+        RT_LOGF(RT_TAG_NAND, "unknown [system] language \"%s\"; keeping the console's language\n",
+                name->c_str());
+    }
+    return code;
+}
+
 inline std::filesystem::path DiscoverNandRootPath() {
     static const auto root = [] {
         const auto resolved = ResolveNandRootPath();
+        // A new NAND gets the disc's region, as a console bought with the game would have.
+        const auto region = RuntimeNandSettings::RegionFromGameCode(DiscGameCode());
         std::string error;
-        if (!RuntimeNandSettings::Ensure(resolved, error)) {
+        if (!RuntimeNandSettings::Ensure(resolved, error, std::time(nullptr), region)) {
             FailNandRoot(error.c_str(), RuntimeNandSettings::FilePath(resolved));
+        }
+        if (!RuntimeNandSysconf::Ensure(resolved, region, ConfiguredSystemLanguage(),
+                                        RuntimeConfigFile::WidescreenEnabled(true), error)) {
+            RT_LOGF(RT_TAG_NAND, "%s: %s\n", error.c_str(),
+                    RuntimeConfigFile::PathToUtf8(RuntimeNandSysconf::FilePath(resolved)).c_str());
         }
         return resolved;
     }();
