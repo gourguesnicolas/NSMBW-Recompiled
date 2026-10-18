@@ -61,6 +61,9 @@ static constexpr int32_t ISFS_DEV_FD = 1;
 static constexpr int32_t ES_DEV_FD = 3;
 static constexpr int32_t DOLPHIN_DEV_FD = 4;
 static constexpr uint32_t ES_IOCTL_GETDEVICEID = 0x07;
+static constexpr uint32_t ES_IOCTL_GETCONSUMPTION = 0x16;
+static constexpr uint32_t ES_IOCTL_DIGETTICKETVIEW = 0x1B;
+static constexpr uint32_t ES_IOCTL_GETTITLEDIR = 0x1D;
 static constexpr uint32_t ES_IOCTL_GETDEVICECERT = 0x1E;
 static constexpr uint32_t ES_IOCTL_GETTITLEID = 0x20;
 static constexpr uint32_t ES_IOCTL_SIGN = 0x30;
@@ -110,7 +113,33 @@ static IosVector ReadIosVector(uint32_t vectorPtr, uint32_t index) {
 
 static uint64_t CurrentMkwTitleId() {
     uint32_t low = CurrentMkwTitleIdLo();
-    return (static_cast<uint64_t>(kNandTitleIdHi) << 32) | low;
+    return (static_cast<uint64_t>(CurrentNandTitleIdHi()) << 32) | low;
+}
+
+// ES ticket view: a version word followed by the ticket from its ticket_id field (0x1D0) to the end.
+static constexpr size_t kEsTicketViewSize = 0xD8;
+static constexpr size_t kEsTicketSize = 0x2A4;
+static constexpr size_t kEsTicketViewSourceOffset = 0x1D0;
+
+static std::vector<uint8_t> BuildTicketView(const uint8_t* ticket) {
+    std::vector<uint8_t> view(kEsTicketViewSize, 0);
+    std::memcpy(view.data() + 4, ticket + kEsTicketViewSourceOffset, kEsTicketSize - kEsTicketViewSourceOffset);
+    return view;
+}
+
+// The disc ticket's view, or one made from the running title ID (no limits, no access mask) when the
+// extracted disc has no ticket.bin.
+static std::vector<uint8_t> CurrentDiscTicketView() {
+    const std::vector<uint8_t>& ticket = CurrentDiscTicket();
+    if (!ticket.empty()) {
+        return BuildTicketView(ticket.data());
+    }
+    std::vector<uint8_t> view(kEsTicketViewSize, 0);
+    const uint64_t titleId = CurrentMkwTitleId();
+    for (int i = 0; i < 8; ++i) {
+        view[0x10 + i] = static_cast<uint8_t>(titleId >> (56 - 8 * i));
+    }
+    return view;
 }
 
 static bool WriteGuestBytes(uint32_t address, uint32_t size, const uint8_t* data, size_t dataSize) {
@@ -358,7 +387,14 @@ static int32_t HandleShaIoctlv(int32_t fd, uint32_t cmd, uint32_t numIn, uint32_
     return ISFS_OK;
 }
 
-extern "C" int32_t NAND_IOS_Open_HLE(uint32_t pathPtr, uint32_t mode) {
+// MKW_TRACE_NAND=1 prints every IOS open, ISFS ioctl and ioctlv with its result, to see what the game
+// asks the NAND for and what it is told.
+static bool NandTraceEnabled() {
+    static const bool enabled = std::getenv("MKW_TRACE_NAND") != nullptr;
+    return enabled;
+}
+
+static int32_t IosOpenImpl(uint32_t pathPtr, uint32_t mode) {
     const std::string pathStorage = ReadGuestCString(pathPtr);
     const char* path = pathPtr == 0 ? nullptr : pathStorage.c_str();
     
@@ -425,6 +461,14 @@ extern "C" int32_t NAND_IOS_Open_HLE(uint32_t pathPtr, uint32_t mode) {
     
     int32_t fd = AllocateFd(hostPath, file, mode);
     return fd;
+}
+
+extern "C" int32_t NAND_IOS_Open_HLE(uint32_t pathPtr, uint32_t mode) {
+    const int32_t result = IosOpenImpl(pathPtr, mode);
+    if (NandTraceEnabled()) {
+        RT_LOGF(RT_TAG_NAND, "trace: open '%s' mode %u -> %d\n", ReadGuestCString(pathPtr).c_str(), mode, result);
+    }
+    return result;
 }
 PPC_NATIVE_OVERRIDE(801938F8, NAND_IOS_Open_HLE, int32_t, (uint32_t pathPtr, uint32_t mode), (pathPtr, mode));
 
@@ -551,7 +595,7 @@ enum ISFSCommand {
     ISFS_IOCTL_SHUTDOWN = 13,
 };
 
-extern "C" int32_t NAND_IOS_Ioctl_HLE(
+static int32_t IosIoctlImpl(
     uint32_t fd,
     uint32_t cmd,
     uint32_t inBufPtr, uint32_t inLen,
@@ -613,20 +657,19 @@ extern "C" int32_t NAND_IOS_Ioctl_HLE(
                     return ISFS_ENOENT;
                 }
                 
-                // Return fake attributes (owner UID, group ID, permissions)
-                // Format: u32 ownerID, u16 groupID, u8 ownerPerm, u8 groupPerm, u8 otherPerm, u8 attrs
+                // Fake attributes. Layout: u32 owner ID, u16 group ID, the path (64 bytes at 6),
+                // then u8 owner, group and other permissions (0x46-0x48) and u8 attributes (0x49).
                 uint8_t* outBuf = (uint8_t*)Memory::GetPointer(outBufPtr);
                 if (outBuf && outLen >= 0x4c) {
                     std::memset(outBuf, 0, outLen);
-                    // Owner UID = 0
                     Memory::Write32(outBufPtr, 0);
-                    // Group ID = 0
                     Memory::Write16(outBufPtr + 4, 0);
+                    std::strncpy(reinterpret_cast<char*>(outBuf + 6), path, 63);
                     // Permissions: 3 = read/write for all
-                    Memory::Write8(outBufPtr + 0x49, 3); // owner perm
-                    Memory::Write8(outBufPtr + 0x46, 3); // group perm
-                    Memory::Write8(outBufPtr + 0x47, 3); // other perm
-                    Memory::Write8(outBufPtr + 0x48, IsDirectory(hostPath) ? 2 : 1); // attrs (2=dir, 1=file)
+                    Memory::Write8(outBufPtr + 0x46, 3); // owner perm
+                    Memory::Write8(outBufPtr + 0x47, 3); // group perm
+                    Memory::Write8(outBufPtr + 0x48, 3); // other perm
+                    Memory::Write8(outBufPtr + 0x49, 0); // attributes
                 }
                 return ISFS_OK;
             }
@@ -637,6 +680,10 @@ extern "C" int32_t NAND_IOS_Ioctl_HLE(
                 }
                 const char* path = (const char*)Memory::GetPointer(inBufPtr + 6);
                 const std::filesystem::path hostPath = TranslateNandPath(path);
+                // IOS never truncates here: an existing file is "already exists" and keeps its data.
+                if (PathExists(hostPath)) {
+                    return ISFS_EEXIST;
+                }
                 CreateParentDirectories(hostPath);
 
                 // Create empty file
@@ -731,6 +778,23 @@ extern "C" int32_t NAND_IOS_Ioctl_HLE(
     
     // Unknown command - return success to not block game
     return ISFS_OK;
+}
+
+extern "C" int32_t NAND_IOS_Ioctl_HLE(
+    uint32_t fd,
+    uint32_t cmd,
+    uint32_t inBufPtr, uint32_t inLen,
+    uint32_t outBufPtr, uint32_t outLen)
+{
+    const int32_t result = IosIoctlImpl(fd, cmd, inBufPtr, inLen, outBufPtr, outLen);
+    if (NandTraceEnabled() && !Network_HLE_IsFd(fd)) {
+        // CreateDir/CreateFile put the path after a 6-byte owner/group header; the others start with it.
+        const bool pathAfterHeader = cmd == ISFS_IOCTL_CREATEDIR || cmd == ISFS_IOCTL_CREATEFILE;
+        const std::string path = fd == ISFS_DEV_FD && inBufPtr != 0
+            ? ReadGuestCString(inBufPtr + (pathAfterHeader ? 6u : 0u)) : std::string();
+        RT_LOGF(RT_TAG_NAND, "trace: ioctl fd %u cmd %u '%s' -> %d\n", fd, cmd, path.c_str(), result);
+    }
+    return result;
 }
 
 // The stack frame a guest thread parks on while a deferred network ioctl runs.
@@ -860,7 +924,7 @@ int32_t ISFS_OpenLib_Initialize(CpuContext* ctx) {
     
     // Create the title data directory if it doesn't exist
     char titleId[32];
-    std::snprintf(titleId, sizeof(titleId), "%08x", kNandTitleIdHi);
+    std::snprintf(titleId, sizeof(titleId), "%08x", CurrentNandTitleIdHi());
     char gameId[32];
     std::snprintf(gameId, sizeof(gameId), "%08x", CurrentMkwTitleIdLo());
     CreateDirectoryPath(GetNandBasePath() / "title" / titleId / gameId / "data");
@@ -967,8 +1031,14 @@ static int32_t HandleIsfsReadDir(uint32_t numIn, uint32_t numOut, uint32_t vecto
         return ISFS_EINVAL;
     }
     const std::filesystem::path hostPath = TranslateNandPath(wiiPath.c_str());
-    if (!IsDirectory(hostPath)) {
+    // IOS answers "invalid" for a file, not "missing": the NAND library's type query (NANDGetType)
+    // reads a directory listing and takes -101 to mean "this is a file". Saying ENOENT made the game
+    // believe its save did not exist and create a new one over it at every boot.
+    if (!PathExists(hostPath)) {
         return ISFS_ENOENT;
+    }
+    if (!IsDirectory(hostPath)) {
+        return ISFS_EINVAL;
     }
 
     // NAND names are at most 12 characters; longer host names cannot exist on
@@ -1021,7 +1091,7 @@ static int32_t HandleIsfsReadDir(uint32_t numIn, uint32_t numOut, uint32_t vecto
     return ISFS_OK;
 }
 
-extern "C" int32_t NAND_IOS_Ioctlv_HLE(
+static int32_t IosIoctlvImpl(
     uint32_t fd,
     uint32_t cmd,
     uint32_t numIn,
@@ -1082,6 +1152,63 @@ extern "C" int32_t NAND_IOS_Ioctlv_HLE(
                 return ISFS_OK;
             }
 
+            case ES_IOCTL_GETCONSUMPTION: {
+                // In: a ticket ID; out: its consumption records and their count. The disc ticket has
+                // no time or launch limits, so nothing has been consumed.
+                if (numIn != 1 || numOut != 2) {
+                    return ISFS_EINVAL;
+                }
+                const IosVector count = ReadIosVector(vectorPtr, 2);
+                if (count.size < 4 || !IsValidGuestRange(count.address, 4)) {
+                    return ISFS_EINVAL;
+                }
+                Memory::Write32(count.address, 0);
+                return ISFS_OK;
+            }
+
+            case ES_IOCTL_DIGETTICKETVIEW: {
+                // In: the ticket to view, or an empty vector for the disc's own; out: the view.
+                if (numIn != 1 || numOut != 1) {
+                    return ISFS_EINVAL;
+                }
+                const IosVector in = ReadIosVector(vectorPtr, 0);
+                const IosVector out = ReadIosVector(vectorPtr, 1);
+                std::vector<uint8_t> view;
+                if (in.size == 0) {
+                    view = CurrentDiscTicketView();
+                } else if (in.size >= kEsTicketSize && IsValidGuestRange(in.address, kEsTicketSize)) {
+                    view = BuildTicketView(Memory::GetPointer(in.address, kEsTicketSize));
+                } else {
+                    return ISFS_EINVAL;
+                }
+                if (!WriteGuestBytes(out.address, out.size, view.data(), view.size())) {
+                    return ISFS_EINVAL;
+                }
+                return ISFS_OK;
+            }
+
+            case ES_IOCTL_GETTITLEDIR: {
+                // In: the 64-bit title ID; out: "/title/<hi>/<lo>/data". IOS creates that directory
+                // when the title is set up, so it exists before the game's first NAND call.
+                if (numIn != 1 || numOut != 1) {
+                    return ISFS_EINVAL;
+                }
+                const IosVector in = ReadIosVector(vectorPtr, 0);
+                const IosVector out = ReadIosVector(vectorPtr, 1);
+                if (in.size < 8 || !IsValidGuestRange(in.address, 8)) {
+                    return ISFS_EINVAL;
+                }
+                char path[32];
+                const int length = std::snprintf(path, sizeof(path), "/title/%08x/%08x/data",
+                                                 Memory::Read32(in.address), Memory::Read32(in.address + 4u));
+                if (!WriteGuestBytes(out.address, out.size, reinterpret_cast<const uint8_t*>(path),
+                                     static_cast<size_t>(length) + 1)) {
+                    return ISFS_EINVAL;
+                }
+                CreateDirectoryPath(TranslateNandPath(path));
+                return ISFS_OK;
+            }
+
             case ES_IOCTL_GETTITLEID: {
                 if (numIn != 0 || numOut != 1) {
                     return ISFS_EINVAL;
@@ -1125,6 +1252,29 @@ extern "C" int32_t NAND_IOS_Ioctlv_HLE(
     
     // Non-device ioctlv has no ISFS command we need to service.
     return ISFS_OK;
+}
+
+extern "C" int32_t NAND_IOS_Ioctlv_HLE(
+    uint32_t fd,
+    uint32_t cmd,
+    uint32_t numIn,
+    uint32_t numOut,
+    uint32_t vectorPtr)
+{
+    const int32_t result = IosIoctlvImpl(fd, cmd, numIn, numOut, vectorPtr);
+    if (NandTraceEnabled() && !Network_HLE_IsFd(fd)) {
+        // ISFS ReadDir's first input is the directory path.
+        std::string path;
+        if (fd == ISFS_DEV_FD && numIn != 0 && vectorPtr != 0) {
+            const IosVector first = ReadIosVector(vectorPtr, 0);
+            if (first.address != 0) {
+                path = ReadGuestCString(first.address);
+            }
+        }
+        RT_LOGF(RT_TAG_NAND, "trace: ioctlv fd %u cmd %u in %u out %u '%s' -> %d\n",
+                fd, cmd, numIn, numOut, path.c_str(), result);
+    }
+    return result;
 }
 
 extern "C" void NAND_IOS_Ioctlv_Entry_HLE(CpuContext* ctx) {

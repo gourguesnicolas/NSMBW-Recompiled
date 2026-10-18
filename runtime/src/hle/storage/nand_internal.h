@@ -90,6 +90,12 @@ void CloseFd(int32_t fd);
 // ============================================================================
 
 uint32_t CurrentMkwTitleIdLo();
+// Upper half of the running title's ID. Disc games differ (Mario Kart Wii is 0x00010004, most are
+// 0x00010000), so it comes from the disc's own ticket when the extracted disc has one.
+uint32_t CurrentNandTitleIdHi();
+// The disc partition's ticket (<dvd_root>/ticket.bin, 0x2A4 bytes), or empty when it is absent or
+// belongs to another title.
+const std::vector<uint8_t>& CurrentDiscTicket();
 std::string CurrentNandDataDir();
 const std::filesystem::path& GetNandBasePath();
 std::filesystem::path TranslateNandPath(const char* wiiPath);

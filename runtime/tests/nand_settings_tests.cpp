@@ -39,6 +39,7 @@ int main() {
             golden[i] = static_cast<uint8_t>(std::stoul(goldenHex.substr(i * 2, 2), nullptr, 16));
         }
         Require(EncodeNew("000000001") == golden, "Exact Dolphin writer golden fixture");
+        Require(EncodeNew("000000001", Region::Europe) == golden, "PAL stays the default");
         std::string error;
         Require(!RuntimeNandSettings::Read(root));
         Require(!std::filesystem::exists(root));
@@ -172,6 +173,13 @@ int main() {
             sawExtraLf |= decoded.find("\r\n\n") != std::string::npos;
         }
         Require(sawExtraLf, "Exercise Dolphin LF escape path");
+
+        const auto usaRoot = root / "usa";
+        Require(Ensure(usaRoot, error, 1800000123, Region::Usa), "USA first boot");
+        const auto usa = Read(usaRoot);
+        Require(usa && HasIdentity(*usa) && usa->at("AREA") == "USA" && usa->at("CODE") == "LU" &&
+                usa->at("GAME") == "US" && usa->at("VIDEO") == "NTSC" &&
+                usa->at("MODEL") == "RVL-001(USA)", "USA first-boot fields");
         std::filesystem::remove_all(root);
         std::cout << "NAND settings checks passed\n";
         return 0;

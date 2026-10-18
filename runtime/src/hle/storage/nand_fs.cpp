@@ -81,10 +81,50 @@ uint32_t CurrentMkwTitleIdLo() {
     return RuntimeHle::CurrentGameCode(kNandTitleIdLo);
 }
 
+// Ticket layout: the title ID is at 0x1DC (upper half first).
+static constexpr size_t kDiscTicketSize = 0x2A4;
+static constexpr size_t kDiscTicketTitleIdOffset = 0x1DC;
+
+static const std::vector<uint8_t>& LoadDiscTicketFile() {
+    static std::once_flag once;
+    static std::vector<uint8_t> ticket;
+    std::call_once(once, []() {
+        const auto dvdRoot = RuntimeConfigFile::ResolvedDvdRoot();
+        if (dvdRoot.empty()) {
+            return;
+        }
+        std::ifstream in(dvdRoot / "ticket.bin", std::ios::binary);
+        if (!in) {
+            return;
+        }
+        std::vector<uint8_t> bytes(kDiscTicketSize);
+        in.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+        if (in.gcount() == static_cast<std::streamsize>(kDiscTicketSize)) {
+            ticket = std::move(bytes);
+        }
+    });
+    return ticket;
+}
+
+const std::vector<uint8_t>& CurrentDiscTicket() {
+    static const std::vector<uint8_t> none;
+    const std::vector<uint8_t>& ticket = LoadDiscTicketFile();
+    if (ticket.empty() ||
+        BigEndian::Read32(ticket.data() + kDiscTicketTitleIdOffset + 4) != CurrentMkwTitleIdLo()) {
+        return none;
+    }
+    return ticket;
+}
+
+uint32_t CurrentNandTitleIdHi() {
+    const std::vector<uint8_t>& ticket = CurrentDiscTicket();
+    return ticket.empty() ? kNandTitleIdHi : BigEndian::Read32(ticket.data() + kDiscTicketTitleIdOffset);
+}
+
 std::string CurrentNandDataDir() {
     char path[64];
     std::snprintf(path, sizeof(path), "/title/%08x/%08x/data",
-                  kNandTitleIdHi, CurrentMkwTitleIdLo());
+                  CurrentNandTitleIdHi(), CurrentMkwTitleIdLo());
     return path;
 }
 

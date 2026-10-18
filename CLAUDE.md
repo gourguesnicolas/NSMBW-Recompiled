@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#73 merged; PR #74 open: music fixed, DVD fatal-error flag).
+Last updated: 2026-10-18 (#74 merged; PR open: console data, saves kept across boots, game in French).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -106,13 +106,20 @@ Last updated: 2026-10-18 (#73 merged; PR #74 open: music fixed, DVD fatal-error 
   likely lighting textures, plus each animated tile's frame at (0,456)/(0,488) before copying it into the
   tileset. An earlier report of this strip showing at the bottom of the picture was not seen again in the
   latest screenshots; the VI/EFB size mirrors (`kViRenderHeightAddr` etc.) are still not located for this
-  game. Music: still missing (user report); not investigated yet.
+  game.
 - **Startup screen**: the runtime covers the game with an opaque black "WiiCompiled" screen until
   `settings_overlay::NotifyStrapInputAccepted()`; for SMNE01 `vi.cpp` calls it after 30 presented frames
   (stand-in for MKW's strap-scene hook).
-- **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
-  NAND (SC getters other than aspect ratio return defaults).
-- **Open PRs**: #74 (music fix, DVD fatal-error flag).
+- **Console data and saves (#19)**: the save was lost at every boot. ISFS ReadDir on a file answered -106
+  instead of -101, so the NAND library took `wiimj2d.sav` for missing, the game created it again and CreateFile
+  truncated it; both fixed (`storage/nand_isfs.cpp`). `/dev/es` GetTitleDir (29), DIGetTicketView (27) and
+  GetConsumption (22) are answered; GetTitleDir failing had put the save at the NAND root. The save is now in
+  `/title/00010000/534d4e45/data` (title ID upper half read from `<dvd_root>/ticket.bin`). A new NAND gets a
+  `SYSCONF` (`runtime/include/nand_sysconf.h`) and a `setting.txt` for the disc's region (USA here, from
+  `sys/boot.bin`); the SDK now parses `SYSCONF` (the `SCCheckStatus` hook used to skip the parse).
+  `[system] language = "french"` in `Config.toml` puts the game in French (seen: strap screen, save dialog).
+  `MKW_TRACE_NAND=1` traces NAND traffic. `play_rec.dat` is still not created (nothing visible fails).
+- **Open PRs**: console data / saves (#19).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -124,8 +131,9 @@ Last updated: 2026-10-18 (#73 merged; PR #74 open: music fixed, DVD fatal-error 
 2. Run from `build/nsmbw` with a portable layout: an empty `portable.txt` next to the exe and
    `UserData/Config.toml` containing `[paths]` / `dvd_root = "<extracted disc dir>"` (the directory that holds
    `files/` and `sys/fst.bin`). Everything there is git-ignored.
-3. Trace switches: `MKW_TRACE_DVD=1` (every disc file read), `MKW_TRACE_VI=1` (a line per 60 frame-buffer
-   submissions). Close any running `WiiCompiled.exe` before rebuilding: it locks the executable.
+3. Trace switches: `MKW_TRACE_DVD=1` (every disc file read), `MKW_TRACE_NAND=1` (every NAND open, ISFS
+   ioctl and ioctlv with its result), `MKW_TRACE_VI=1` (a line per 60 frame-buffer submissions). Optional
+   `[system] language = "french"` (or "english", "spanish", ...) in `Config.toml` sets the console language. Close any running `WiiCompiled.exe` before rebuilding: it locks the executable.
 4. To see the picture from a script: find the window by title `WiiCompiled` (`FindWindow`; the process
    `MainWindowHandle` can be 0), make the process DPI-aware, `CopyFromScreen` its rectangle. `MKW_TRACE_VI=1` also
    prints the number of `GXBegin` calls so far.
@@ -147,7 +155,8 @@ values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there
    audit the remaining GX hooks by body (list above).
 2. **Audio by ear**: the user confirms music in menus and levels; check tempo, pitch and the reverb
    (the AXFX callback is not located).
-3. **Fill the missing console data**: `play_rec.dat`, `SYSCONF`, `/dev/es` ioctls 29 and 27.
+3. **Saves by hand**: the user finishes a level, quits, relaunches and checks the progress is still there
+   (boot already reads the existing save instead of recreating it).
 4. Faithful strap-scene hook; GameCube pad when reached.
 5. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
    `KPADGetUnifiedWpadStatus`, the NAND API level.

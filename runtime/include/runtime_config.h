@@ -93,6 +93,8 @@ struct RuntimeUserConfig {
     // "dpad_up,left_shoulder") as values; pressing either bound button counts.
     std::array<std::optional<std::string>, 12> controllerButtons;
     std::optional<bool> rumbleEnabled;
+    // [system] language: the console language the game reads from SYSCONF ("english", "french", ...).
+    std::optional<std::string> systemLanguage;
     std::optional<int32_t> muteHotkey;
     std::map<std::string, std::string> controllerExpressions;
 };
@@ -415,6 +417,7 @@ inline RuntimeUserConfig ParseConfigDocument(const toml::value& document) {
     }
 
     config.rumbleEnabled = FindConfigValue<bool>(document, "controller", "rumble");
+    config.systemLanguage = FindConfigValue<std::string>(document, "system", "language");
     if (auto value = FindConfigInt(document, "audio", "mute_key")) {
         config.muteHotkey = *value;
     }
@@ -723,6 +726,10 @@ inline bool RumbleEnabled(bool fallback = true) {
 inline bool SetRumbleEnabled(bool value) {
     Mutable().rumbleEnabled = value;
     return WriteSetting("controller", "rumble", value ? "true" : "false");
+}
+
+inline std::optional<std::string> SystemLanguage() {
+    return Get().systemLanguage;
 }
 
 inline int32_t MuteHotkey(int32_t fallback) {

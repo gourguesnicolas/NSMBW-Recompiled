@@ -234,9 +234,30 @@ Kart Wii's `0x801937E0`..`0x801945E0`: open `0x80224B50`/`0x80224C70`, close `0x
 `0x80225500`/`0x80225640`, ioctlv `0x802258B0`/`0x802259A0`. `0x80226490` is `ISFS_OpenLib` (it references
 `/dev/fs`); it is not replaced and works translated.
 
-SC: `0x801DB8E0` is the status poll OSInit and the input code call (state byte at `r13 - 19504`, 1 = busy);
-`0x801DD1D0` is `SCGetAspectRatio`. The other getters read the in-memory SYSCONF buffer, which stays at its
-defaults because there is no `SYSCONF` file.
+SC: `0x801DB8E0` is `SCCheckStatus`, the status poll OSInit and the input code call (state byte at
+`r13 - 19504`: 1 = read running, 3 = read done and waiting to be parsed, 0 = parsed, 2 = error). It is also
+the function that parses the file (`0x801DBEB0`, which sets the item count at `r13 - 19492` and the size at
+`r13 - 19488`) into the table every getter reads through `0x801DC8B0`. It used to be replaced by a stub
+returning 0, so the file was never parsed and every getter returned its built-in default (English, ...).
+The hook now delivers the queued IOS callbacks of the open -> read -> close chain and runs the original
+(`REGISTER_NATIVE_FUNCTION_AS`, so the translator keeps the body). `0x801DD1D0` is `SCGetAspectRatio`,
+`0x801DD320` `SCGetLanguage` (item 11, falls back to English unless the font encoding is Shift-JIS). The
+runtime creates `/shared2/sys/SYSCONF` on a new NAND (`runtime/include/nand_sysconf.h`); `[system]
+language` in `Config.toml` sets `IPL.LNG`.
+
+ES (`/dev/es` ioctlv, SDK wrappers next to `ESP_GetTitleId` `0x801D66E0`): GetTitleDir (29, `0x801D6640`, called
+by the NAND library to find the home directory), DIGetTicketView (27, `0x801D64A0`, the disc ticket's view; the
+callers read the title ID at offset `0x10`) and GetConsumption (22, `0x801D6780`) are answered in
+`storage/nand_isfs.cpp`. Before, GetTitleDir failed and the game wrote its save to the NAND root. The title ID's
+upper half comes from `<dvd_root>/ticket.bin` (`00010000` for this game, `00010004` for Mario Kart Wii).
+
+ISFS: ReadDir on a file answers -101 (IOS and Dolphin do); the NAND library's type query relies on it. It
+answered -106, so the game took its save for missing and created a new one at every boot, and CreateFile
+(which truncated existing files) emptied it. CreateFile now answers "already exists" (-105) instead.
+`MKW_TRACE_NAND=1` prints every IOS open, ISFS ioctl and ioctlv with its result.
+
+`/title/00000001/00000002/data/play_rec.dat` (the system menu's play log) is opened read-write and missing on a
+new NAND. The runtime does not create it; nothing visible fails without it (not investigated further).
 
 ## Not found, or no counterpart
 
