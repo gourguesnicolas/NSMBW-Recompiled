@@ -64,6 +64,19 @@ void HLE_SISetSamplingRate_801b3acc(uint32_t msec);
 uint32_t __OSInitSTM_HLE_801ab848(CpuContext* ctx);
 void OSSetAlarm_HLE_801a0870(CpuContext* ctx);
 void OS__SetPeriodicAlarm_801a08e0(CpuContext* ctx);
+void PPCHalt_8012E5A4();
+void OS__Panic_801A2660_Cpu(CpuContext* ctx);
+void OSFatal_HLE_801a4ec4(CpuContext* ctx);
+void OS__Report_801a25d0(CpuContext* ctx);
+void IOS_IoctlvReboot_HLE(CpuContext* ctx);
+void OSReturnToMenu_HLE(CpuContext* ctx);
+void OSReturnToDataManager_HLE(CpuContext* ctx);
+void OSReturnToMenuInternal_HLE(CpuContext* ctx);
+void OSReturnToMenuForError_HLE(CpuContext* ctx);
+void OSShutdownSystem_HLE(CpuContext* ctx);
+void OSRestart_HLE(CpuContext* ctx);
+void OSRebootSystem_HLE(CpuContext* ctx);
+void OSHotReset_HLE(CpuContext* ctx);
 }
 
 // Threads (OSThread.c).
@@ -134,6 +147,43 @@ PPC_NATIVE_OVERRIDE(802247D0, IPCCltInit_80193478, int32_t, (CpuContext* ctx), (
 // Alarms (OSAlarm.c).
 PPC_NATIVE_OVERRIDE_VOID(801AB540, OSSetAlarm_HLE_801a0870, (CpuContext* ctx), (ctx));
 PPC_NATIVE_OVERRIDE_VOID(801AB5B0, OS__SetPeriodicAlarm_801a08e0, (CpuContext* ctx), (ctx));
+
+// Fatal paths (#79). Translated, PPCHalt is an endless loop and OSFatal draws its own screen and then
+// halts, so a fatal error froze the game; these report it (popup, crash artifacts) and exit.
+// PPCHalt (0x801A9BA0): sync, then an endless nop loop.
+PPC_NATIVE_OVERRIDE_VOID(801A9BA0, PPCHalt_8012E5A4, (), ());
+// OSPanic (OSError.c, 0x801AD4E0): vprintf (0x802E1560), " in \"%s\" on line %d.", the stack, PPCHalt.
+// The reset functions call it when the console did not reset.
+PPC_NATIVE_OVERRIDE_VOID(801AD4E0, OS__Panic_801A2660_Cpu, (CpuContext* ctx), (ctx));
+// OSFatal (OSFatal.c, 0x801AF5D0): switches to a fiber running 0x801AF7C0, which draws the message,
+// reports it and calls PPCHalt.
+PPC_NATIVE_OVERRIDE_VOID(801AF5D0, OSFatal_HLE_801a4ec4, (CpuContext* ctx), (ctx));
+// OSReport (0x8015F730): saves the variable arguments and calls the print function the game installs
+// (pointer at r13 - 25208). OSPanic uses it for its location and stack lines.
+PPC_NATIVE_OVERRIDE_VOID(8015F730, OS__Report_801a25d0, (CpuContext* ctx), (ctx));
+
+// IOS_IoctlvReboot (ipcclt.c, 0x80225A80): the ioctlv ES_LaunchTitle (0x801D62E0) uses, through which
+// OSReturnToMenu (0x801B3B00), OSReturnToDataManager (0x801B3B40) and __OSReturnToMenu (0x801B3870) leave
+// the game. Translated, it drives the IPC registers and waits forever. The STM reset and power-off
+// requests (0x801B69C0 sends hot reset 0x2001, 0x801B6940 shutdown 0x2003) reach the IOS ioctl hook,
+// which handles them in storage/nand_isfs.cpp.
+PPC_NATIVE_OVERRIDE_VOID(80225A80, IOS_IoctlvReboot_HLE, (CpuContext* ctx), (ctx));
+
+// OSReset.c (strings at 0x80333AF8: "OSReset.c", then each function's failure message). Translated, each
+// first runs __OSShutdownDevices (0x801B3410), whose busy loop waits on the play-record shutdown function
+// (0x801B7A20) for a NAND completion that is never delivered inside the loop: "Wii Menu" froze. Leaving
+// is decided here instead; the IOS handlers above stay as the fallback for any other path.
+// Return to the Wii Menu: each ends in ES_LaunchTitle of the system menu.
+PPC_NATIVE_OVERRIDE_VOID(801B3B00, OSReturnToMenu_HLE, (CpuContext* ctx), (ctx));            // "OSReturnToMenu(): Falied ..."
+PPC_NATIVE_OVERRIDE_VOID(801B3B40, OSReturnToDataManager_HLE, (CpuContext* ctx), (ctx));     // "OSReturnToDataManager(): ..."
+PPC_NATIVE_OVERRIDE_VOID(801B3870, OSReturnToMenuInternal_HLE, (CpuContext* ctx), (ctx));    // "__OSReturnToMenu(): ...", called by both
+PPC_NATIVE_OVERRIDE_VOID(801B3B80, OSReturnToMenuForError_HLE, (CpuContext* ctx), (ctx));    // same message; called on DVD errors
+// Power off: sends STM shutdown (0x801B6940) after reading the idle mode from SYSCONF.
+PPC_NATIVE_OVERRIDE_VOID(801B3670, OSShutdownSystem_HLE, (CpuContext* ctx), (ctx));
+// Reset: each sends STM hot reset (0x801B69C0) and panics with "__OSHotReset(): Falied ..." if it returns.
+PPC_NATIVE_OVERRIDE_VOID(801B3790, OSRestart_HLE, (CpuContext* ctx), (ctx));
+PPC_NATIVE_OVERRIDE_VOID(801B3590, OSRebootSystem_HLE, (CpuContext* ctx), (ctx));           // also stops the drive first
+PPC_NATIVE_OVERRIDE_VOID(801B3C30, OSHotReset_HLE, (CpuContext* ctx), (ctx));
 
 // EXILock (EXIBios.c, 0x801B9D70). EXIUnlock is stubbed (above), so the lock bit the real EXILock tests
 // would never be cleared and the next user, the ROM font read in OSInitFont, would wait forever. There

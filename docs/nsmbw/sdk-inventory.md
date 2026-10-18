@@ -99,11 +99,11 @@ The SDK band holds 2,130 function starts. Game and engine code calls 315 of them
 | `0x801BCCF0` | 12 | 7 |  | VIWaitForRetrace |
 | `0x801B2390` | 12 | 9 |  | OSInitMessageQueue |
 
-Of the 315 SDK functions game code calls directly, 94 are replaced by a runtime hook for this game; the others run as translated code.
+Of the 315 SDK functions game code calls directly, 100 are replaced by a runtime hook for this game; the others run as translated code.
 
 ## Runtime hook coverage
 
-The runtime registers 583 hooks at Mario Kart Wii addresses (all off for this game: `runtime.native_hooks: false`) and 259 at SMNE01 addresses in `runtime/src/hle/profiles/smne01`. A shared hook counts as ported when the profile registers the same implementation. `gx/gx_fatal_stubs.cpp` holds stops for GX functions Mario Kart Wii never calls; here those functions run translated, so they are not ported.
+The runtime registers 583 hooks at Mario Kart Wii addresses (all off for this game: `runtime.native_hooks: false`) and 272 at SMNE01 addresses in `runtime/src/hle/profiles/smne01`. A shared hook counts as ported when the profile registers the same implementation. `gx/gx_fatal_stubs.cpp` holds stops for GX functions Mario Kart Wii never calls; here those functions run translated, so they are not ported.
 
 | Source file | Shared hooks | Ported | GX stops | Not ported |
 | --- | --- | --- | --- | --- |
@@ -133,11 +133,11 @@ The runtime registers 583 hooks at Mario Kart Wii addresses (all off for this ga
 | `os/os_alarm.cpp` | 3 | 2 | 0 | 1 |
 | `os/os_cache.cpp` | 19 | 19 | 0 | 0 |
 | `os/os_context.cpp` | 4 | 4 | 0 | 0 |
-| `os/os_init.cpp` | 29 | 5 | 0 | 24 |
+| `os/os_init.cpp` | 29 | 6 | 0 | 23 |
 | `os/os_interrupt.cpp` | 21 | 17 | 0 | 4 |
 | `os/os_message.cpp` | 4 | 3 | 0 | 1 |
-| `os/os_report.cpp` | 1 | 0 | 0 | 1 |
-| `os/os_reset.cpp` | 4 | 0 | 0 | 4 |
+| `os/os_report.cpp` | 1 | 1 | 0 | 0 |
+| `os/os_reset.cpp` | 4 | 2 | 0 | 2 |
 | `os/os_scheduler.cpp` | 4 | 4 | 0 | 0 |
 | `os/os_sleep.cpp` | 2 | 1 | 0 | 1 |
 | `os/os_thread.cpp` | 7 | 7 | 0 | 0 |
@@ -151,16 +151,16 @@ The runtime registers 583 hooks at Mario Kart Wii addresses (all off for this ga
 | `task_thread.cpp` | 1 | 0 | 0 | 1 |
 | `trk.cpp` | 1 | 0 | 0 | 1 |
 | `vi.cpp` | 17 | 14 | 0 | 3 |
-| **Total** | 583 | 250 | 205 | 128 |
+| **Total** | 583 | 254 | 205 | 124 |
 
 Hooks not ported, by reason (from `NOT_PORTED` in the script):
 
 | Reason | Hooks |
 | --- | --- |
-| Mario Kart Wii only | 12 |
+| Mario Kart Wii only | 13 |
 | Covered by a lower layer | 56 |
-| Runs translated (no hook needed so far) | 50 |
-| To port (not located) | 10 |
+| Runs translated (no hook needed so far) | 51 |
+| To port (not located) | 4 |
 
 ### To port (not located)
 
@@ -170,12 +170,6 @@ Hooks not ported, by reason (from `NOT_PORTED` in the script):
 | `AXFXReverbStdExpCallback_8012b830` | `0x8012B830` | `audio/ax_effects.cpp` | reverb effect callback |
 | `KPAD__GetUnifiedWpadStatus_HLE` | `0x8019812C` | `input/kpad.cpp` | unified controller status |
 | `WPADGetDpdSensitivity_HLE` | `0x801C329C` | `input/wpad.cpp` | pointer sensitivity |
-| `OSFatal_HLE_801a4ec4` | `0x801A4EC4` | `os/os_init.cpp` | fatal error screen |
-| `OS__Report_801a25d0` | `0x801A25D0` | `os/os_report.cpp` | debug report output |
-| `Exit_801AE58C` | `0x801AE58C` | `os/os_reset.cpp` | exit |
-| `OSResetSystem` | `0x801A8A80` | `os/os_reset.cpp` | reset and return to the Wii Menu |
-| `OS__Panic_801A2660_Cpu` | `0x801A2660` | `os/os_reset.cpp` | panic |
-| `PPCHalt_8012E5A4` | `0x8012E5A4` | `os/os_reset.cpp` | halt after a fatal error |
 
 ### Runs translated (no hook needed so far)
 
@@ -222,6 +216,7 @@ Hooks not ported, by reason (from `NOT_PORTED` in the script):
 | `OSSetPowerCallback_801ab75c` | `0x801AB75C` | `os/os_interrupt.cpp` | power button callback |
 | `OS__ExceptionInit_801a00e0` | `0x801A00E0` | `os/os_interrupt.cpp` | start-up |
 | `OS__JamMessage_HLE_801a7500` | `0x801A7500` | `os/os_message.cpp` | message queue; send and receive are hooked |
+| `Exit_801AE58C` | `0x801AE58C` | `os/os_reset.cpp` | C library exit; not reached so far |
 | `OS__SleepTicks_HLE_801aaca8` | `0x801AACA8` | `os/os_sleep.cpp` | inlined in this build |
 | `OS__GetTime_HLE` | `0x801AAD5C` | `os/os_time.cpp` | time base read by translated mftb |
 | `OS____GetSystemTime_801aad7c` | `0x801AAD7C` | `os/os_time.cpp` | time base read by translated mftb |
@@ -305,10 +300,11 @@ Hooks not ported, by reason (from `NOT_PORTED` in the script):
 | `RFLiIsWorking_HLE_800bd860` | `0x800BD860` | `os/os_alarm.cpp` | RFL is not linked |
 | `OSInitAlarm_RecompModLateInit_801a961c` | `0x801A961C` | `os/os_init.cpp` | mod loader hook |
 | `StaticRProlog_RecompModInit_8055531c` | `0x8055531C` | `os/os_init.cpp` | mod loader hook |
+| `OSResetSystem` | `0x801A8A80` | `os/os_reset.cpp` | obsolete in this SDK (prints a message); the OSReset.c entry points are hooked instead |
 | `OS__CheckInstall` | `0x801AD1D4` | `sc.cpp` | channel install check |
 | `OS__IsTitleInstalled` | `0x801AE4A0` | `sc.cpp` | channel install check |
 | `TaskThread_run_HLE_80242d7c` | `0x80242D7C` | `task_thread.cpp` | Mario Kart Wii's EGG build |
 | `Stub_8002001C` | `0x8002001C` | `trk.cpp` | debugger stub |
 
-Hooks written for this game only (7): `EXILock_HLE_801B9D70`, `KPAD__ReadEx_HLE_801ED3B0`, `OSGetFontEncode_HLE_801B00A0`, `OSReadROM_HLE_801B4310`, `OSSetProgressiveMode_HLE_801b00f0`, `SCCheckStatus_SMNE01`, `WUDIsReady_HLE_801FCF30`.
+Hooks written for this game only (16): `EXILock_HLE_801B9D70`, `IOS_IoctlvReboot_HLE`, `KPAD__ReadEx_HLE_801ED3B0`, `OSGetFontEncode_HLE_801B00A0`, `OSHotReset_HLE`, `OSReadROM_HLE_801B4310`, `OSRebootSystem_HLE`, `OSRestart_HLE`, `OSReturnToDataManager_HLE`, `OSReturnToMenuForError_HLE`, `OSReturnToMenuInternal_HLE`, `OSReturnToMenu_HLE`, `OSSetProgressiveMode_HLE_801b00f0`, `OSShutdownSystem_HLE`, `SCCheckStatus_SMNE01`, `WUDIsReady_HLE_801FCF30`.
 

@@ -4,6 +4,8 @@
 #include "ppc_runtime.h"
 #include "runtime_log.h"
 #include "system_bridge.h"
+#include "os_power.h"
+#include "platform/host_platform.h"
 
 #include <cstdlib>
 #include <cstdio>
@@ -33,7 +35,48 @@ static std::string ReadGuestStringSafe(uint32_t addr)
     return out;
 }
 
+// Stops the mix worker before the process ends: it holds resolved host pointers into the guest regions.
+void ShutdownBeforeExit()
+{
+    AxDspHle::ShutdownMixWorker();
+    Memory::Reset();
+}
+
 } // namespace
+
+void RuntimeGuestPowerOff(const char* reason)
+{
+    RT_LOGF(RT_TAG_OS, "%s: closing the runtime\n", reason);
+    std::fflush(stderr);
+    ShutdownBeforeExit();
+    SetRuntimeExitCode(0);
+    std::exit(EXIT_SUCCESS);
+}
+
+void RuntimeGuestRestart(const char* reason)
+{
+    const bool started = RuntimePlatform::StartNewInstance();
+    RT_LOGF(RT_TAG_OS, "%s: %s\n", reason,
+            started ? "restarting the runtime" : "could not start a new instance; closing the runtime");
+    std::fflush(stderr);
+    ShutdownBeforeExit();
+    SetRuntimeExitCode(0);
+    std::exit(EXIT_SUCCESS);
+}
+
+// The OSReset.c entry points a game leaves through, for games whose SDK has them (registered per game).
+// The SDK's own path first runs every registered shutdown function in a busy loop until all report ready;
+// some wait for asynchronous NAND or DVD completions that the runtime only delivers between guest thread
+// switches, so the loop never ends. These replace the whole call, as OSResetSystem does above for Mario
+// Kart Wii: the runtime writes NAND files as they are written, so nothing is lost.
+extern "C" void OSReturnToMenu_HLE(CpuContext*) { RuntimeGuestPowerOff("OSReturnToMenu (Wii Menu)"); }
+extern "C" void OSReturnToDataManager_HLE(CpuContext*) { RuntimeGuestPowerOff("OSReturnToDataManager"); }
+extern "C" void OSReturnToMenuInternal_HLE(CpuContext*) { RuntimeGuestPowerOff("__OSReturnToMenu"); }
+extern "C" void OSReturnToMenuForError_HLE(CpuContext*) { RuntimeGuestPowerOff("return to the Wii Menu after an error"); }
+extern "C" void OSShutdownSystem_HLE(CpuContext*) { RuntimeGuestPowerOff("OSShutdownSystem (power off)"); }
+extern "C" void OSRestart_HLE(CpuContext*) { RuntimeGuestRestart("OSRestart (reset)"); }
+extern "C" void OSRebootSystem_HLE(CpuContext*) { RuntimeGuestRestart("OSRebootSystem (reset)"); }
+extern "C" void OSHotReset_HLE(CpuContext*) { RuntimeGuestRestart("__OSHotReset (reset)"); }
 
 // 0x8012E5A4 -> PPCHalt
 extern "C" void PPCHalt_8012E5A4()
@@ -46,7 +89,7 @@ extern "C" void PPCHalt_8012E5A4()
     RuntimeCrash::WriteCrashArtifacts("halt", "The guest executed PPCHalt.");
     SetRuntimeExitCode(EXIT_FAILURE);
     ShowRuntimeFatalPopup("the guest operating system halted the console",
-                          "Mario Kart Wii executed PPCHalt, which the console only reaches after an "
+                          "The game executed PPCHalt, which the console only reaches after an "
                           "unrecoverable error.");
     MarkFatalErrorReported();
     std::exit(EXIT_FAILURE);
@@ -93,7 +136,7 @@ extern "C" void OS__Panic_801A2660_Cpu(CpuContext* ctx)
     std::fflush(stderr);
     std::fflush(stdout);
 
-    std::string details = "Mario Kart Wii reported an OS panic";
+    std::string details = "The game reported an OS panic";
     if (!file.empty()) {
         details += " at ";
         details += file;
@@ -120,15 +163,7 @@ PPC_NATIVE_OVERRIDE_VOID(801A2660, OS__Panic_801A2660_Cpu, (CpuContext* ctx), (c
 // 0x801A8A80 -> OSResetSystem
 extern "C" uint32_t OSResetSystem()
 {
-    RT_LOGF(RT_TAG_OS, "OSResetSystem: simulating console reset\n");
-    std::fflush(stderr);
-    // The AX mix worker holds resolved host pointers into the guest regions;
-    // it must be stopped before those mappings are torn down.
-    AxDspHle::ShutdownMixWorker();
-    Memory::Reset();
-    SetRuntimeExitCode(0);
-    std::exit(EXIT_SUCCESS);
-    return 0; // unreachable, but keeps the signature consistent with callers
+    RuntimeGuestPowerOff("OSResetSystem: simulating console reset");
 }
 
 PPC_NATIVE_OVERRIDE(801A8A80, OSResetSystem, uint32_t, (), ());
@@ -140,7 +175,7 @@ extern "C" uint32_t Exit_801AE58C(int status)
     std::fflush(stderr);
     if (status != 0) {
         const std::string details =
-            "Mario Kart Wii called exit(" + std::to_string(status) + ").";
+            "The game called exit(" + std::to_string(status) + ").";
         RuntimeCrash::WriteCrashArtifacts("exit", details);
         ShowRuntimeFatalPopup("the game exited with an error status", details);
         MarkFatalErrorReported();
