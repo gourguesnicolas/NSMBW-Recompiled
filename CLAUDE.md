@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#75 merged; PRs open: #76 tileset refreshed after a pipe, #77 play_rec.dat).
+Last updated: 2026-10-18 (#76 and #77 merged; PR open: #52 REL data report).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -125,9 +125,9 @@ Last updated: 2026-10-18 (#75 merged; PRs open: #76 tileset refreshed after a pi
   `MKW_TRACE_NAND=1` traces NAND traffic. `play_rec.dat` (the system menu's play log) is written on the first open of each run, as the menu does before booting a disc: banner name, game ID, guest time base; the SDK then updates its time every minute (checked).
   **Confirmed by the user**: progress is kept after finishing a level and relaunching. #19's three criteria
   (title directory, system settings, save creation flow) are met.
-- **Open PRs**: #76 (tileset refresh after a pipe), #77 (play_rec.dat, stacked on #76).
+- **Open PRs**: #52 fix (generate-data-init REL size report; generic translator change, proposable upstream).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
-  until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
+  until a real run confirms the log paths), #15 (determinism audit),
   #6 (licence of the symbol sources).
 
 ### How to run it locally
@@ -161,7 +161,7 @@ values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there
    audit the remaining GX hooks by body (list above).
 2. **Audio by ear**: the user confirms music in menus and levels; check tempo, pitch and the reverb
    (the AXFX callback is not located).
-3. **#52**: the stale "REL data: 0 bytes" message (generic translator PR, proposable upstream).
+3. **Close #51/#14**: inventory the SDK functions still unhooked against what the game calls.
 4. Faithful strap-scene hook; GameCube pad when reached.
 5. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
    `KPADGetUnifiedWpadStatus`, the NAND API level.
