@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#76 and #77 merged; PR open: #52 REL data report).
+Last updated: 2026-10-18 (#76 and #77 merged; PR #78 open: #52 REL data report).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -125,7 +125,7 @@ Last updated: 2026-10-18 (#76 and #77 merged; PR open: #52 REL data report).
   `MKW_TRACE_NAND=1` traces NAND traffic. `play_rec.dat` (the system menu's play log) is written on the first open of each run, as the menu does before booting a disc: banner name, game ID, guest time base; the SDK then updates its time every minute (checked).
   **Confirmed by the user**: progress is kept after finishing a level and relaunching. #19's three criteria
   (title directory, system settings, save creation flow) are met.
-- **Open PRs**: #52 fix (generate-data-init REL size report; generic translator change, proposable upstream).
+- **Open PRs**: #78 (fixes #52: generate-data-init REL size report; generic translator change, proposable upstream).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit),
   #6 (licence of the symbol sources).
