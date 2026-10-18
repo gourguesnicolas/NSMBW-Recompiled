@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#82 merged; PR open: IR pointer from the mouse, HOME Menu usable, closes #24).
+Last updated: 2026-10-18 (#82 merged; PR #83 open: IR pointer from the mouse, HOME Menu usable, closes #24).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -147,7 +147,7 @@ Last updated: 2026-10-18 (#82 merged; PR open: IR pointer from the mouse, HOME M
   fiber hit a joinable static `std::thread` and a hidden terminate popup; see `hle-hooks.md`).
   The game calls 315 SDK functions directly; 94 are hooked. A new hook missing from `NOT_PORTED` shows up as
   "Unclassified" when the report is regenerated.
-- **Open PRs**: IR pointer (closes #24).
+- **Open PRs**: #83 (IR pointer, closes #24).
 - **Open issues to keep open**: #16 (first launch), #80 (input), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit),
   #6 (licence of the symbol sources).
