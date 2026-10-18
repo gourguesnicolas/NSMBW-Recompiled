@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#81 merged; PR open: leaving the game cleanly, closes #79).
+Last updated: 2026-10-18 (#81 merged; PR #82 open: leaving the game cleanly, closes #79).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -140,7 +140,7 @@ Last updated: 2026-10-18 (#81 merged; PR open: leaving the game cleanly, closes 
   guest function from a temporary local trigger; not yet through the HOME menu (needs the pointer, #24).
   The game calls 315 SDK functions directly; 94 are hooked. A new hook missing from `NOT_PORTED` shows up as
   "Unclassified" when the report is regenerated.
-- **Open PRs**: leaving the game cleanly (closes #79).
+- **Open PRs**: #82 (leaving the game cleanly, closes #79).
 - **Open issues to keep open**: #16 (first launch), #80 (input), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit),
   #6 (licence of the symbol sources).
