@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 NSMBW-Recompiled is a static recompilation of New Super Mario Bros. Wii (USA, `SMNE01` revision 2),
 forked from WiiCompiled (GPL-3.0). Read `docs/nsmbw/architecture.md` and `docs/nsmbw/roadmap.md`
@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#74 merged; PR open: console data, saves kept across boots, game in French).
+Last updated: 2026-10-18 (#74 merged; PR #75 open: console data, saves kept across boots, game in French).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -119,7 +119,7 @@ Last updated: 2026-10-18 (#74 merged; PR open: console data, saves kept across b
   `sys/boot.bin`); the SDK now parses `SYSCONF` (the `SCCheckStatus` hook used to skip the parse).
   `[system] language = "french"` in `Config.toml` puts the game in French (seen: strap screen, save dialog).
   `MKW_TRACE_NAND=1` traces NAND traffic. `play_rec.dat` is still not created (nothing visible fails).
-- **Open PRs**: console data / saves (#19).
+- **Open PRs**: #75 (console data, saves kept across boots; part of #19).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
