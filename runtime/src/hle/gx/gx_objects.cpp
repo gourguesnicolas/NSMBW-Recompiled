@@ -585,6 +585,61 @@ GXTexObj* TryGetHostTexObj(uint32_t addr) {
     return nullptr;
 }
 
+bool FindTextureContainingCopy(uint32_t addr, uint16_t strideWidth, uint32_t format, uint32_t copyWidth,
+                               uint32_t copyHeight, TextureCopyRegion& out) {
+    // Texel block geometry of the formats an EFB copy can write and a texture can share.
+    uint32_t blockWidth = 0;
+    uint32_t blockHeight = 0;
+    uint32_t blockBytes = 32;
+    switch (format) {
+    case GX_TF_I4: blockWidth = 8; blockHeight = 8; break;
+    case GX_TF_I8:
+    case GX_TF_IA4: blockWidth = 8; blockHeight = 4; break;
+    case GX_TF_IA8:
+    case GX_TF_RGB565:
+    case GX_TF_RGB5A3: blockWidth = 4; blockHeight = 4; break;
+    case GX_TF_RGBA8: blockWidth = 4; blockHeight = 4; blockBytes = 64; break;
+    default: return false;
+    }
+
+    const uint32_t target = CanonicalizeGxMainRamAddress(addr);
+    std::lock_guard<std::mutex> guard(g_texObjMutex);
+    EnsureTexObjIntervalsLocked();
+    const auto upper = std::upper_bound(
+        g_texObjIntervals.begin(), g_texObjIntervals.end(), target,
+        [](uint32_t key, const TexObjIntervalEntry& entry) { return key < entry.dataAddr; });
+    for (auto it = upper; it != g_texObjIntervals.begin();) {
+        --it;
+        if (static_cast<uint64_t>(it->dataAddr) + g_texObjIntervalMaxSize <= target) {
+            break;
+        }
+        const TexObjSlot* slot = it->slot;
+        if (slot == nullptr || slot->width != strideWidth || slot->format != format) {
+            continue;
+        }
+        const uint32_t offset = target - it->dataAddr;
+        const uint32_t rowBytes = ((slot->width + blockWidth - 1) / blockWidth) * blockBytes;
+        if (rowBytes == 0 || offset % blockBytes != 0) {
+            continue;
+        }
+        const uint32_t x = ((offset % rowBytes) / blockBytes) * blockWidth;
+        const uint32_t y = (offset / rowBytes) * blockHeight;
+        // Only a copy that covers part of the texture; a full-size copy keeps the plain path.
+        if (y >= slot->height || (copyWidth >= slot->width && copyHeight >= slot->height)) {
+            continue;
+        }
+        out.baseAddr = slot->dataAddr;
+        out.baseSize = GXGetTexBufferSize(slot->width, slot->height, slot->format, GX_FALSE, 0);
+        out.width = slot->width;
+        out.height = slot->height;
+        out.format = slot->format;
+        out.x = static_cast<uint16_t>(x);
+        out.y = static_cast<uint16_t>(y);
+        return true;
+    }
+    return false;
+}
+
 void MarkTexObjsDirtyForRange(uint32_t addr, uint32_t size) {
     if (size == 0) {
         return;

@@ -1116,6 +1116,8 @@ void invalidate_static_texture_cache() noexcept {
   g_gxState.stateDirty = true;
 }
 
+gfx::TextureHandle resolve_ram_texture(const GXTexObj_& obj) { return resolve_static_texture(obj); }
+
 void clear_copy_texture_cache() noexcept {
   g_gxState.copyTextures.clear();
   g_gxState.copyTextureCache.clear();

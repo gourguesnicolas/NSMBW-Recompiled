@@ -333,6 +333,10 @@ void resolve_pass(TextureHandle texture, ClipRect rect, bool clearColor, bool cl
                   float copyFilterRowStride = 1.0f, bool clampTop = false, bool clampBottom = false,
                   bool persistentCopy = false);
 
+// After the resolve that resolve_pass just recorded, draw `source` into `targetRect` of `target`, keeping
+// the rest of `target`. For GX copies into a sub-rectangle of a larger texture.
+void queue_post_resolve_blit(TextureHandle source, TextureHandle target, ClipRect targetRect) noexcept;
+
 void begin_offscreen(uint32_t width, uint32_t height);
 void end_offscreen();
 bool is_offscreen() noexcept;

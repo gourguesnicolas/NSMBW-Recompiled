@@ -350,6 +350,21 @@ GXTexObj* TryGetHostTexObj(uint32_t addr);
 GXTexObj* CreateHostTexObj(uint32_t addr);
 void MarkHostTexObjConstructed(uint32_t addr);
 void MarkTexObjsDirtyForRange(uint32_t addr, uint32_t size);
+
+// A texture whose RAM a sub-rectangle EFB copy writes into: on hardware GXCopyTex writes the copied
+// pixels at the destination with the row stride of the GXSetTexCopyDst width, so a game can update
+// part of a texture (an animated-tile atlas). Found among the texture objects the game has set up.
+struct TextureCopyRegion {
+    uint32_t baseAddr = 0;
+    uint32_t baseSize = 0;
+    uint16_t width = 0;
+    uint16_t height = 0;
+    uint32_t format = 0;
+    uint16_t x = 0;
+    uint16_t y = 0;
+};
+bool FindTextureContainingCopy(uint32_t addr, uint16_t strideWidth, uint32_t format, uint32_t copyWidth,
+                               uint32_t copyHeight, TextureCopyRegion& out);
 // Invalidates GPU-only GXCopyTex results when guest CPU writes are made visible
 // over their destination. This is the allocation-reuse generation boundary
 // for copy textures; it must be called for every data-cache store/flush range.

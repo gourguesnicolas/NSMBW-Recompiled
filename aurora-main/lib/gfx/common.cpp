@@ -186,6 +186,10 @@ struct RenderPass {
   bool resolveLinearSampling = false;
   bool snapshotColorResolveSource = false;
   std::vector<tex_palette_conv::ConvRequest> paletteConvs;
+  // Encoded after this pass's resolve, in order: blits of resolved copies into sub-rectangles of
+  // longer-lived textures (see queue_post_resolve_blit).
+  std::vector<tex_copy_conv::ConvRequest> postResolveBlits;
+  std::vector<TextureHandle> postResolveSources;
 };
 static std::vector<RenderPass> g_renderPasses;
 static u32 g_currentRenderPass = UINT32_MAX;
@@ -541,6 +545,31 @@ void push_draw_command(clear::DrawData data) {
     data.uniformRange = push_uniform(clearUniform);
   }
   push_draw_command(ShaderDrawCommand{.type = ShaderType::Clear, .clear = data});
+}
+
+void queue_post_resolve_blit(TextureHandle source, TextureHandle target, ClipRect targetRect) noexcept {
+  // resolve_pass has just pushed a new pass; the resolved one is the previous pass.
+  if (!source || !target || g_currentRenderPass == UINT32_MAX || g_currentRenderPass == 0 ||
+      g_currentRenderPass > g_renderPasses.size()) {
+    Log.warn("Dropping post-resolve blit without a resolved pass");
+    return;
+  }
+  auto& resolvedPass = g_renderPasses[g_currentRenderPass - 1];
+  // Full source, no copy filter, no clamping (same layout as the resolve uniform).
+  static constexpr std::array fullSourceUniform{
+      0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 64.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+  };
+  resolvedPass.postResolveBlits.push_back(tex_copy_conv::ConvRequest{
+      .fmt = GX_TF_RGBA8,
+      .srcView = source->sampleTextureView,
+      .uniformRange = push_uniform(fullSourceUniform),
+      .dst = std::move(target),
+      .sampleFilter = tex_copy_conv::SampleFilter::Nearest,
+      .hasDstRect = true,
+      .dstRect = targetRect,
+  });
+  // Keep the source alive until the frame is encoded.
+  resolvedPass.postResolveSources.push_back(std::move(source));
 }
 
 template <>
@@ -1439,6 +1468,9 @@ static void render_impl(std::vector<RenderPass>& renderPasses, wgpu::CommandEnco
         };
         cmd.CopyTextureToTexture(&src, &dst, &size);
       }
+    }
+    for (const auto& blitRequest : passInfo.postResolveBlits) {
+      tex_copy_conv::blit(cmd, blitRequest);
     }
   }
   if (finalize) {

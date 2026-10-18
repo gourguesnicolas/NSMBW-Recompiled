@@ -18,6 +18,10 @@ struct ConvRequest {
   TextureHandle dst;         // Destination texture
   SampleFilter sampleFilter = SampleFilter::Nearest;
   bool forceOpaqueAlpha = false;
+  // Draw into this rectangle of dst only and keep the rest of dst (a GX copy into a sub-rectangle of a
+  // larger texture). Otherwise dst is cleared and fully covered.
+  bool hasDstRect = false;
+  ClipRect dstRect{};
 };
 
 bool needs_conversion(GXTexFmt fmt);
