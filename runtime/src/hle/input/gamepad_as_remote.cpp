@@ -12,6 +12,7 @@
 #include <SDL3/SDL_keyboard.h>
 #include <dolphin/pad.h>
 
+#include <algorithm>
 #include <cstdint>
 
 namespace {
@@ -67,6 +68,8 @@ bool Read(uint32_t chan, WiiRemoteInput::KpadSample& sample) {
         if (b & PAD_TRIGGER_Z) hold |= kWpadMinus;
         if (b & PAD_TRIGGER_L) hold |= kWpadHome;
     }
+    const float stickX = pad.err == PAD_ERR_NONE ? pad.substickX / 100.0f : 0.0f;
+    const float stickY = pad.err == PAD_ERR_NONE ? pad.substickY / 100.0f : 0.0f;
 
     int keyCount = 0;
     const bool* keys = SDL_GetKeyboardState(&keyCount);
@@ -84,6 +87,9 @@ bool Read(uint32_t chan, WiiRemoteInput::KpadSample& sample) {
     sample = {};
     sample.hold = hold;
     sample.acc[1] = -1.0f; // at rest, as the real remote reports it
+    // The right stick moves the IR pointer (PointerInput).
+    sample.pointerStick[0] = std::clamp(stickX, -1.0f, 1.0f);
+    sample.pointerStick[1] = std::clamp(stickY, -1.0f, 1.0f);
     return true;
 }
 

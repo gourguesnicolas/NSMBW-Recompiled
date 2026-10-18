@@ -261,4 +261,12 @@ PPC_NATIVE_OVERRIDE_VOID(801C9C60, GX__SetScissor_80173430, (uint32_t l, uint32_
 PPC_NATIVE_OVERRIDE_VOID(801C9D20, GX__SetScissorBoxOffset_801734e0, (int32_t xo, int32_t yo), (xo, yo));
 PPC_NATIVE_OVERRIDE_VOID(801C9D60, GX__SetClipMode_8017351c, (uint32_t m), (m));
 
+// GXAbortFrame (0x801C4CE0): resets the command FIFO through the processor-interface register 0xCC003018
+// and waits for the GPU to go idle. The game's reset sequence calls it before leaving for the Wii Menu
+// (from 0x80108C60) and OSFatal calls it too. There is no hardware FIFO behind aurora, and the runtime
+// blocks that register write, which ended the HOME Menu's "Wii Menu" in a crash; nothing is left to abort.
+// Mario Kart Wii never calls it (its hook is a stop in gx_fatal_stubs.cpp).
+extern "C" void GXAbortFrame_HLE_801C4CE0() {}
+PPC_NATIVE_OVERRIDE_VOID(801C4CE0, GXAbortFrame_HLE_801C4CE0, (), ());
+
 #endif // MKW_HOOK_PROFILE_SMNE01

@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "wii_remote_input.h"
 #include "gamepad_as_remote.h"
+#include "pointer_input.h"
 
 #include <algorithm>
 #include <array>
@@ -24,6 +25,10 @@ constexpr uint32_t kHold = 0x00, kTrig = 0x04, kRelease = 0x08, kAcc = 0x0C, kAc
                    kAccSpeed = 0x1C, kPos = 0x20, kAccVertical = 0x54, kDevType = 0x5C, kWpadErr = 0x5D,
                    kDpdValidFg = 0x5E, kDataFormat = 0x5F, kFsStick = 0x60, kFsAcc = 0x68, kFsAccValue = 0x74,
                    kFsAccSpeed = 0x78;
+// The pointer fields between pos and acc_vertical.
+constexpr uint32_t kVec = 0x28, kSpeed = 0x30, kHorizon = 0x34, kDist = 0x48;
+// Metres to the sensor bar KPAD reports for a remote held at a usual playing distance.
+constexpr float kNominalDistance = 2.0f;
 // KPADStatus.ex_status.cl (KPADEXStatus, Classic Controller view).
 constexpr uint32_t kClHold = 0x60, kClTrig = 0x64, kClRelease = 0x68, kClLStick = 0x6C, kClRStick = 0x74,
                    kClLTrigger = 0x7C, kClRTrigger = 0x80;
@@ -56,6 +61,8 @@ struct ChannelState {
     uint32_t prevClHold = 0;
     float prevAcc[3] = {0.0f, -1.0f, 0.0f};
     float prevFsAcc[3] = {0.0f, -1.0f, 0.0f};
+    float prevPos[2] = {};
+    bool prevPointerValid = false;
 };
 
 std::array<ChannelState, 4> g_channels{};
@@ -111,10 +118,29 @@ int32_t WriteStatus(uint32_t chan, uint32_t addr, const WiiRemoteInput::KpadSamp
     Memory::WriteFloat32(addr + kAccSpeed, Distance(sample->acc, state.prevAcc));
     for (int i = 0; i < 3; ++i) state.prevAcc[i] = sample->acc[i];
 
-    // No IR pointer: pos .. acc_vertical zeroed and dpd_valid_fg clear, which
-    // the game treats as "pointing away from the screen".
+    // IR pointer. Without one: pos .. acc_vertical zeroed and dpd_valid_fg clear, which the game treats
+    // as "pointing away from the screen". With one: pos and its movement (vec, speed), a level remote
+    // (horizon (1, 0)) at a nominal distance, and both sensor-bar marks seen (dpd_valid_fg 2).
     WriteZeroFloats(addr + kPos, (kAccVertical + 8 - kPos) / 4);
-    Memory::Write8(addr + kDpdValidFg, 0);
+    if (sample->pointerValid) {
+        const float vec[2] = {sample->pointer[0] - state.prevPos[0], sample->pointer[1] - state.prevPos[1]};
+        const float speed = state.prevPointerValid ? std::sqrt(vec[0] * vec[0] + vec[1] * vec[1]) : 0.0f;
+        Memory::WriteFloat32(addr + kPos, sample->pointer[0]);
+        Memory::WriteFloat32(addr + kPos + 4, sample->pointer[1]);
+        if (state.prevPointerValid) {
+            Memory::WriteFloat32(addr + kVec, vec[0]);
+            Memory::WriteFloat32(addr + kVec + 4, vec[1]);
+        }
+        Memory::WriteFloat32(addr + kSpeed, speed);
+        Memory::WriteFloat32(addr + kHorizon, 1.0f);
+        Memory::WriteFloat32(addr + kDist, kNominalDistance);
+        Memory::Write8(addr + kDpdValidFg, 2);
+        state.prevPos[0] = sample->pointer[0];
+        state.prevPos[1] = sample->pointer[1];
+    } else {
+        Memory::Write8(addr + kDpdValidFg, 0);
+    }
+    state.prevPointerValid = sample->pointerValid;
 
     const uint8_t devType = sample->hasClassic ? kDevClassic : sample->hasNunchuk ? kDevFreestyle : kDevCore;
     const uint8_t dataFormat =
@@ -219,6 +245,12 @@ bool ReadSample(uint32_t chan, WiiRemoteInput::KpadSample& sample) {
         return false;
 #endif
     }
+#if defined(MKW_HOOK_PROFILE_SMNE01)
+    // Neither source has IR data: the mouse or the right stick points for the first remote.
+    if (chan == 0) {
+        PointerInput::Apply(sample);
+    }
+#endif
     if (InputBindings::InputBlocked()) {
         sample.hold = 0;
         sample.clHold = 0;
@@ -228,6 +260,7 @@ bool ReadSample(uint32_t chan, WiiRemoteInput::KpadSample& sample) {
         sample.clLStickRaw[0] = sample.clLStickRaw[1] = 0;
         sample.clRStickRaw[0] = sample.clRStickRaw[1] = 0;
         sample.clTriggerL = sample.clTriggerR = 0;
+        sample.pointerValid = false;
     }
     return true;
 }

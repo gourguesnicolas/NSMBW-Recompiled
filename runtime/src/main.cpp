@@ -405,6 +405,8 @@ std::string ReadInstalledSetupVersion() {
     return text.substr(open + 1, close - open - 1);
 }
 
+void ShutdownProcessTranscript();
+
 void InitializeProcessTranscript(int argc, char** argv) {
     auto& state = GetProcessTranscriptState();
     if (state.initialized.exchange(true, std::memory_order_acq_rel)) {
@@ -498,6 +500,11 @@ void InitializeProcessTranscript(int argc, char** argv) {
     state.stderrThread = std::thread([&state]() {
         PumpTranscriptPipe(state, state.stderrPipeReadFd, state.savedStderrFd);
     });
+    // Guest code leaves through std::exit (return to the Wii Menu, a reset, OSFatal, ...) without coming
+    // back here. Joining the pump threads at exit, before the static state is destroyed, keeps a joinable
+    // std::thread from reaching its destructor, which calls std::terminate and showed a fatal popup that
+    // kept the process alive. Registered after the state was constructed, so it runs first.
+    std::atexit([] { ShutdownProcessTranscript(); });
 }
 
 void ShutdownProcessTranscript() {
@@ -1270,6 +1277,23 @@ static void AtExitHandler() {
     std::cout.flush();
     std::fflush(stdout);
     std::fflush(stderr);
+}
+
+// A clean exit requested by the guest (return to the Wii Menu, power off, reset), from the guest's own
+// thread and fiber, in the middle of a frame. RuntimeMain's orderly end cannot run from there: the
+// fiber manager and aurora are in use on this very stack. So everything that has to reach the disk is
+// written here, and the process ends without running static destructors, several of which own
+// still-running threads (the transcript pumps, aurora's pipeline workers) and would call std::terminate.
+void ExitRuntimeFromGuest(int code) {
+    SetRuntimeExitCodeImpl(code);
+    GuestFlat::LogFaultSummary();
+    WindowPlacementPersistence::Flush(true);
+    DiscordPresence::Shutdown();
+    ShutdownProcessTranscript();
+    std::cout.flush();
+    std::cerr.flush();
+    std::fflush(nullptr);
+    std::_Exit(code);
 }
 
 // Global terminate handler for uncaught exceptions

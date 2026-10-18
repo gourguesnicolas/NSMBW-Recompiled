@@ -49,8 +49,7 @@ void RuntimeGuestPowerOff(const char* reason)
     RT_LOGF(RT_TAG_OS, "%s: closing the runtime\n", reason);
     std::fflush(stderr);
     ShutdownBeforeExit();
-    SetRuntimeExitCode(0);
-    std::exit(EXIT_SUCCESS);
+    ExitRuntimeFromGuest(EXIT_SUCCESS);
 }
 
 void RuntimeGuestRestart(const char* reason)
@@ -60,8 +59,7 @@ void RuntimeGuestRestart(const char* reason)
             started ? "restarting the runtime" : "could not start a new instance; closing the runtime");
     std::fflush(stderr);
     ShutdownBeforeExit();
-    SetRuntimeExitCode(0);
-    std::exit(EXIT_SUCCESS);
+    ExitRuntimeFromGuest(EXIT_SUCCESS);
 }
 
 // The OSReset.c entry points a game leaves through, for games whose SDK has them (registered per game).
