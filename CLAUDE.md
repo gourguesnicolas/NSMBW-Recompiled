@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (PR #73 open: animated tiles fixed, sub-rectangle EFB copies into the tileset).
+Last updated: 2026-10-18 (#73 merged; music fixed: DVD fatal-error flag, PR open).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -75,11 +75,15 @@ Last updated: 2026-10-18 (PR #73 open: animated tiles fixed, sub-rectangle EFB c
   move, Space or X (pad A) = "2" (jump), Left Shift or Z (pad B) = "1" (run), Enter = A, Backspace = B,
   P = +, M = -, H = Home. It is compiled in only for the `smne01` profile. This is what lets the save dialog
   be answered; `MKW_TRACE_INPUT=1` prints what the game is told.
-- **Audio, measured** (`MKW_TRACE_AUDIO=1`): the AX frame callback runs, voices are "running" (ADPCM), the
-  AX ucode CRC `0x4CC52064` is a known one, and the mixed output is silent (peak 0) until about 15 s after
-  the title starts, then loud (peaks 3,000-32,768; some clipping). So the music is mixed. Whether it is
-  correct, and whether it reaches the speakers, is not established: nobody has listened. Check the device
-  and the sample format before blaming the mix.
+- **Music (BRSTM streams) was silent; fixed.** Sound effects played, music did not. `OSInit` starts the SDK
+  drive state machine, which sent `DVDLowClearCoverInterrupt`/`DVDLowInquiry` to `/dev/di` on fd -1 (the
+  DVD HLE never opens it); the bad reply ended in `cbForStateError` setting the driver's fatal-error flag,
+  so `DVDGetDriveStatus` returned -1 for the whole run and the nw4r stream player kept every stream in
+  "load wait" (voices paused after one frame, only 4 blocks ever read). Both functions are now hooked at
+  SMNE01 addresses with the Mario Kart Wii stubs (`dvd_hooks.cpp`; details in `docs/nsmbw/hle-hooks.md`).
+  Measured on the title demo: streams read block after block, the two stream voices stay running.
+  How it was found: `MKW_TRACE_DVD=1` showed the 4-block stall; temporary prints in the generated shards
+  (local only) followed the stream player's `Start` -> voice pause -> `UpdatePauseStatus` -> drive status.
 - **GX hook mistakes found and fixed** (the 119 hooks were aligned by order and size, which goes wrong where
   the two SDK builds have different functions between two hooked ones): `GXGetTexObjLODAll` was on the wrong
   function (crash); `GXSetCopyClamp` was on `GXGetYScaleFactor` (`0x801C5BC0`, real `0x801C5B00`);
@@ -108,7 +112,7 @@ Last updated: 2026-10-18 (PR #73 open: animated tiles fixed, sub-rectangle EFB c
   (stand-in for MKW's strap-scene hook).
 - **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
   NAND (SC getters other than aspect ratio return defaults).
-- **Open PRs**: #73 (animated-tile fix, sub-rectangle EFB copies).
+- **Open PRs**: the music fix (branch `dvd-fatal-flag-music`).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -141,7 +145,8 @@ values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there
 ### Next steps (in order)
 1. **Check the picture** in levels against the real game (animated tiles after the fix, enemies, effects);
    audit the remaining GX hooks by body (list above).
-2. **Music**: listen, then check the audio backend output path and the sample format if it is noise or silent.
+2. **Audio by ear**: the user confirms music in menus and levels; check tempo, pitch and the reverb
+   (the AXFX callback is not located).
 3. **Fill the missing console data**: `play_rec.dat`, `SYSCONF`, `/dev/es` ioctls 29 and 27.
 4. Faithful strap-scene hook; GameCube pad when reached.
 5. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
