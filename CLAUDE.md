@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#73 merged; music fixed: DVD fatal-error flag, PR open).
+Last updated: 2026-10-18 (#73 merged; PR #74 open: music fixed, DVD fatal-error flag).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -112,7 +112,7 @@ Last updated: 2026-10-18 (#73 merged; music fixed: DVD fatal-error flag, PR open
   (stand-in for MKW's strap-scene hook).
 - **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
   NAND (SC getters other than aspect ratio return defaults).
-- **Open PRs**: the music fix (branch `dvd-fatal-flag-music`).
+- **Open PRs**: #74 (music fix, DVD fatal-error flag).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
