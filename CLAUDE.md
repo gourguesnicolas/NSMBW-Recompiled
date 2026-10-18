@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#78 merged, #19 closed; PR #81 open: SDK inventory, closes #14 and #51).
+Last updated: 2026-10-18 (#81 merged; PR open: leaving the game cleanly, closes #79).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -129,10 +129,19 @@ Last updated: 2026-10-18 (#78 merged, #19 closed; PR #81 open: SDK inventory, cl
   `scripts/sdk_inventory.py ... --hooks runtime/src/hle`) gives every one of the 583 Mario Kart Wii hooks a state:
   250 ported, 205 GX stops not needed, 56 covered by a lower layer, 50 run translated, 12 Mario Kart Wii only,
   10 to port, filed as #79 (exit/reset/fatal/report), #80 (two input functions) and #25 (sample rate, reverb).
+  After #79: 254 ported, 4 left to port (#80, #25).
+- **Leaving the game (#79)**: "Wii Menu", power off and reset froze (the SDK's `__OSShutdownDevices` busy
+  loop waits on the play-record shutdown function for a NAND completion never delivered inside it), and every
+  fatal error froze in `PPCHalt` (an endless loop when translated). The `OSReset.c` entry points are hooked
+  (`OSReturnToMenu` `0x801B3B00` and its variants close the runtime, `OSShutdownSystem` closes, `OSRestart`/
+  `__OSHotReset` start a new instance), with IOS-level fallbacks (STM hot reset/shutdown, `IOS_IoctlvReboot`
+  for `ES_LaunchTitle`). `PPCHalt`, `OSPanic`, `OSFatal` report and exit; `OSReport` (`0x8015F730`) now logs the
+  SDK banners and the game's warnings. Table and evidence in `docs/nsmbw/hle-hooks.md`. Checked by calling each
+  guest function from a temporary local trigger; not yet through the HOME menu (needs the pointer, #24).
   The game calls 315 SDK functions directly; 94 are hooked. A new hook missing from `NOT_PORTED` shows up as
   "Unclassified" when the report is regenerated.
-- **Open PRs**: #81 (SDK inventory, closes #14 and #51).
-- **Open issues to keep open**: #16 (first launch), #79 (exit paths), #80 (input), #7 (templates,
+- **Open PRs**: leaving the game cleanly (closes #79).
+- **Open issues to keep open**: #16 (first launch), #80 (input), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit),
   #6 (licence of the symbol sources).
 
@@ -167,7 +176,7 @@ values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there
    audit the remaining GX hooks by body (list above).
 2. **Audio by ear**: the user confirms music in menus and levels; check tempo, pitch and the reverb
    (the AXFX callback is not located).
-3. **#79**: exit, reset and fatal-error paths (HOME menu "Wii Menu"/"Reset" must close or restart cleanly).
+3. **Pointer (#24)**: needed for the HOME menu buttons and menus; then check "Wii Menu"/"Reset" by hand.
 4. Faithful strap-scene hook; GameCube pad when reached.
 5. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
    `KPADGetUnifiedWpadStatus`, the NAND API level.

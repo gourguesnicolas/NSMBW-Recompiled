@@ -6,6 +6,7 @@
 
 #include "discord_presence.h"
 #include "isa/ppc_isa_int.h"
+#include "hle/os/os_power.h"
 #include "runtime_log.h"
 
 extern "C" void OSSleepThread_HLE_801aa9b8(CpuContext* ctx);
@@ -61,6 +62,12 @@ struct ISFSFileStats {
 static constexpr int32_t ISFS_DEV_FD = 1;
 static constexpr int32_t ES_DEV_FD = 3;
 static constexpr int32_t DOLPHIN_DEV_FD = 4;
+// The fake /dev/stm/immediate handle __OSInitSTM_HLE writes (os/os_init.cpp), and the STM commands.
+static constexpr uint32_t STM_IMMEDIATE_FD = 0x00535401u;
+static constexpr uint32_t STM_IOCTL_HOTRESET = 0x2001;
+static constexpr uint32_t STM_IOCTL_SHUTDOWN = 0x2003;
+static constexpr uint32_t STM_IOCTL_IDLE = 0x2004;
+
 static constexpr uint32_t ES_IOCTL_GETDEVICEID = 0x07;
 static constexpr uint32_t ES_IOCTL_GETCONSUMPTION = 0x16;
 static constexpr uint32_t ES_IOCTL_DIGETTICKETVIEW = 0x1B;
@@ -612,6 +619,20 @@ static int32_t IosIoctlImpl(
 
     if (Network_HLE_IsFd(fd)) {
         return Network_HLE_Ioctl(fd, cmd, inBufPtr, inLen, outBufPtr, outLen);
+    }
+
+    // /dev/stm/immediate: the console's power and reset requests. On a console they never return.
+    if (fd == STM_IMMEDIATE_FD) {
+        switch (cmd) {
+            case STM_IOCTL_HOTRESET:
+                RuntimeGuestRestart("STM hot reset (the game asked the console to reset)");
+            case STM_IOCTL_SHUTDOWN:
+                RuntimeGuestPowerOff("STM shutdown (the game asked the console to power off)");
+            case STM_IOCTL_IDLE:
+                RuntimeGuestPowerOff("STM idle (the game asked the console to go to standby)");
+            default:
+                return ISFS_OK;
+        }
     }
 
     if (GetShaHandle(static_cast<int32_t>(fd))) {

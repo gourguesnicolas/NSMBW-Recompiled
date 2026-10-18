@@ -1,6 +1,8 @@
 #include "platform/host_platform.h"
 
+#include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <vector>
 
 #if defined(_WIN32)
@@ -92,6 +94,86 @@ uint64_t CurrentProcessId() noexcept {
     return static_cast<uint64_t>(::GetCurrentProcessId());
 #else
     return static_cast<uint64_t>(::getpid());
+#endif
+}
+
+bool StartNewInstance() noexcept {
+#if defined(_WIN32)
+    std::wstring executable(MAX_PATH, L'\0');
+    for (;;) {
+        const DWORD length = GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size()));
+        if (length == 0) {
+            return false;
+        }
+        if (length < executable.size() - 1) {
+            executable.resize(length);
+            break;
+        }
+        executable.resize(executable.size() * 2);
+    }
+    // CreateProcessW may write into the command line buffer, so it gets a copy.
+    std::wstring commandLine = GetCommandLineW();
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
+    PROCESS_INFORMATION process{};
+    if (!CreateProcessW(executable.c_str(), commandLine.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr,
+                        &startup, &process)) {
+        return false;
+    }
+    CloseHandle(process.hThread);
+    CloseHandle(process.hProcess);
+    return true;
+#else
+    std::string executable;
+    std::vector<std::string> arguments;
+#if defined(__linux__)
+    std::vector<char> link(4096);
+    const auto length = ::readlink("/proc/self/exe", link.data(), link.size() - 1);
+    if (length > 0) {
+        executable.assign(link.data(), static_cast<std::size_t>(length));
+    }
+    if (FILE* cmdline = std::fopen("/proc/self/cmdline", "rb")) {
+        std::string current;
+        for (int c = std::fgetc(cmdline); c != EOF; c = std::fgetc(cmdline)) {
+            if (c == 0) {
+                arguments.push_back(current);
+                current.clear();
+            } else {
+                current.push_back(static_cast<char>(c));
+            }
+        }
+        std::fclose(cmdline);
+    }
+#elif defined(__APPLE__)
+    uint32_t size = 0;
+    _NSGetExecutablePath(nullptr, &size);
+    if (size != 0) {
+        std::string path(size, '\0');
+        if (_NSGetExecutablePath(path.data(), &size) == 0) {
+            executable.assign(path.c_str());
+        }
+    }
+#endif
+    if (executable.empty()) {
+        return false;
+    }
+    if (arguments.empty()) {
+        arguments.push_back(executable);
+    }
+    const pid_t child = ::fork();
+    if (child < 0) {
+        return false;
+    }
+    if (child == 0) {
+        std::vector<char*> argv;
+        for (auto& argument : arguments) {
+            argv.push_back(argument.data());
+        }
+        argv.push_back(nullptr);
+        ::execv(executable.c_str(), argv.data());
+        ::_exit(127);
+    }
+    return true;
 #endif
 }
 

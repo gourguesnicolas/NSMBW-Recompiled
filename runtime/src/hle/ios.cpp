@@ -5,6 +5,7 @@
 #include "hle_stubs.h"
 #include "memory.h"
 #include "hle/net/network.h"
+#include "hle/os/os_power.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -168,6 +169,34 @@ extern "C" void IOS_SeekAsync_HLE(CpuContext* ctx) {
     CompleteAsync(ctx, callback, result, callbackArg);
 }
 PPC_NATIVE_OVERRIDE_VOID(80193F90, IOS_SeekAsync_HLE, (CpuContext* ctx), (ctx));
+
+// IOS_IoctlvReboot: an ioctlv after which IOS reboots into another title. The SDK uses it for
+// ES_LaunchTitle (ioctlv 8 on /dev/es: the title ID, then its ticket view), which is how
+// OSReturnToMenu, OSReturnToDataManager and the system-settings shortcuts leave the game. The runtime is
+// the console, so launching another title closes it. Anything else is an ordinary ioctlv.
+// Registered per game (no Mario Kart Wii address is known for it).
+extern "C" void IOS_IoctlvReboot_HLE(CpuContext* ctx)
+{
+    constexpr uint32_t kEsFd = 3;          // the /dev/es handle NAND_IOS_Open_HLE returns
+    constexpr uint32_t kEsLaunchTitle = 8;
+    const uint32_t fd = ctx->gpr[3];
+    const uint32_t cmd = ctx->gpr[4];
+    const uint32_t numIn = ctx->gpr[5];
+    const uint32_t numOut = ctx->gpr[6];
+    const uint32_t vectorPtr = ctx->gpr[7];
+    if (fd == kEsFd && cmd == kEsLaunchTitle && numIn >= 1 && vectorPtr != 0) {
+        const uint32_t titleIdPtr = Memory::Read32(vectorPtr);
+        const uint64_t titleId = titleIdPtr != 0
+            ? (static_cast<uint64_t>(Memory::Read32(titleIdPtr)) << 32) | Memory::Read32(titleIdPtr + 4u)
+            : 0;
+        char reason[128];
+        std::snprintf(reason, sizeof(reason), "ES_LaunchTitle(%016llX)%s",
+                      static_cast<unsigned long long>(titleId),
+                      titleId == 0x0000000100000002ull ? " (return to the Wii Menu)" : "");
+        RuntimeGuestPowerOff(reason);
+    }
+    ctx->gpr[3] = static_cast<uint32_t>(NAND_IOS_Ioctlv_HLE(fd, cmd, numIn, numOut, vectorPtr));
+}
 
 // 0x801944FC -> IOS_IoctlvAsync
 extern "C" void IOS_IoctlvAsync_HLE(CpuContext* ctx)

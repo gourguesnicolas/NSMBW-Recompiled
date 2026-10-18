@@ -23,4 +23,9 @@ std::filesystem::path LogDirectory(std::string_view applicationName);
 
 uint64_t CurrentProcessId() noexcept;
 
+// Starts a new instance of this executable in the current working directory, with the same command line
+// where the platform exposes it (Windows, Linux); elsewhere without arguments. The caller then exits.
+// Returns false when nothing was started.
+bool StartNewInstance() noexcept;
+
 } // namespace RuntimePlatform
