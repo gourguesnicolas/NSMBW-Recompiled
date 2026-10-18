@@ -123,6 +123,8 @@ Last updated: 2026-10-18 (#75 merged; PR #76 open: tileset refreshed after a pip
   `sys/boot.bin`); the SDK now parses `SYSCONF` (the `SCCheckStatus` hook used to skip the parse).
   `[system] language = "french"` in `Config.toml` puts the game in French (seen: strap screen, save dialog).
   `MKW_TRACE_NAND=1` traces NAND traffic. `play_rec.dat` is still not created (nothing visible fails).
+  **Confirmed by the user**: progress is kept after finishing a level and relaunching. #19's three criteria
+  (title directory, system settings, save creation flow) are met.
 - **Open PRs**: #76 (tileset refresh after a pipe).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
@@ -159,8 +161,7 @@ values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there
    audit the remaining GX hooks by body (list above).
 2. **Audio by ear**: the user confirms music in menus and levels; check tempo, pitch and the reverb
    (the AXFX callback is not located).
-3. **Saves by hand**: the user finishes a level, quits, relaunches and checks the progress is still there
-   (boot already reads the existing save instead of recreating it).
+3. **#52**: the stale "REL data: 0 bytes" message (generic translator PR, proposable upstream).
 4. Faithful strap-scene hook; GameCube pad when reached.
 5. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
    `KPADGetUnifiedWpadStatus`, the NAND API level.
