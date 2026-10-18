@@ -541,6 +541,106 @@ void GXCopyTex(void* dest, GXBool clear) {
   aurora::gfx::efb_ram::schedule(dest, logicalDstWidth, logicalDstHeight, texCopyFmt, handle.handle);
 }
 
+void GXCopyTexToRegion(void* dest, const void* base, u16 baseWidth, u16 baseHeight, GXTexFmt baseFormat, u16 dstX,
+                       u16 dstY, GXBool clear) {
+  if (aurora::gx::fifo::get_buffer_size() != 0) {
+    aurora::gx::fifo::drain();
+  }
+  const auto sourceRect = map_texture_copy_source(g_gxState.texCopySrc, g_gxState.texCopySrcRenderSpace);
+  const auto rect = sourceRect.clearRect;
+  const auto texCopyFmt = g_gxState.texCopyFmt;
+  const u32 halfShift = g_gxState.texCopyHalfScale ? 1u : 0u;
+  const u32 copyWidth = std::max<u32>(static_cast<u32>(g_gxState.texCopySrc.width) >> halfShift, 1);
+  const u32 copyHeight = std::max<u32>(static_cast<u32>(g_gxState.texCopySrc.height) >> halfShift, 1);
+
+  // The texture keeps one GPU image at internal resolution; texel positions scale with it.
+  const auto [scaledBaseWidth, scaledBaseHeight] = scale_copy_dst(baseWidth, baseHeight);
+  const double scaleX = static_cast<double>(scaledBaseWidth) / static_cast<double>(std::max<u16>(baseWidth, 1));
+  const double scaleY = static_cast<double>(scaledBaseHeight) / static_cast<double>(std::max<u16>(baseHeight, 1));
+  const auto scaled = [](u32 value, double scale) { return static_cast<int32_t>(std::lround(value * scale)); };
+  const int32_t left = scaled(dstX, scaleX);
+  const int32_t top = scaled(dstY, scaleY);
+  const int32_t right = std::min<int32_t>(scaled(dstX + copyWidth, scaleX), static_cast<int32_t>(scaledBaseWidth));
+  const int32_t bottom = std::min<int32_t>(scaled(dstY + copyHeight, scaleY), static_cast<int32_t>(scaledBaseHeight));
+  if (right <= left || bottom <= top) {
+    return;
+  }
+
+  // The texture's GPU image: created from its RAM contents on the first copy, then updated in place.
+  const aurora::gx::GXState::CopyTextureKey baseKey{
+      .dest = base,
+      .width = baseWidth,
+      .height = baseHeight,
+      .format = baseFormat,
+  };
+  aurora::gfx::TextureHandle initialContents;
+  auto baseIt = g_gxState.copyTextureCache.find(baseKey);
+  if (baseIt == g_gxState.copyTextureCache.end() || !baseIt->second.handle ||
+      baseIt->second.handle->size.width != scaledBaseWidth || baseIt->second.handle->size.height != scaledBaseHeight) {
+    GXTexObj ramTexture;
+    GXInitTexObj(&ramTexture, base, baseWidth, baseHeight, baseFormat, GX_CLAMP, GX_CLAMP, GX_FALSE);
+    initialContents = aurora::gx::resolve_ram_texture(*reinterpret_cast<const GXTexObj_*>(&ramTexture));
+    auto handle = aurora::gfx::new_render_texture(scaledBaseWidth, scaledBaseHeight, GX_TF_RGBA8,
+                                                  "GX texture updated by sub-rectangle copies");
+    baseIt = g_gxState.copyTextureCache.insert_or_assign(baseKey, aurora::gx::GXState::CopyTextureRef{.handle = handle})
+                 .first;
+  }
+
+  // The copied pixels, converted to the copy format exactly as a whole-texture copy would be.
+  const aurora::gx::GXState::CopyTextureKey pieceKey{
+      .dest = dest,
+      .width = copyWidth,
+      .height = copyHeight,
+      .format = texCopyFmt,
+  };
+  const auto [scaledCopyWidth, scaledCopyHeight] = scale_copy_dst(copyWidth, copyHeight);
+  auto piece = acquire_copy_texture(pieceKey, scaledCopyWidth, scaledCopyHeight, texCopyFmt);
+
+  const bool sourceHasAlpha = aurora::gx::render_target_has_alpha(g_gxState.pixelFmt);
+  const bool forceOpaqueAlpha = !sourceHasAlpha && !aurora::gx::is_depth_format(texCopyFmt);
+  auto clearState = get_copy_clear_state(clear);
+  const bool alphaUpdate = g_gxState.alphaUpdate && aurora::gx::render_target_has_alpha(g_gxState.pixelFmt);
+  if (alphaUpdate && g_gxState.dstAlpha != UINT32_MAX) {
+    aurora::gfx::push_draw_command(aurora::gfx::clear::DrawData{
+        .pipeline = aurora::gfx::pipeline_ref(aurora::gfx::clear::PipelineConfig{
+            .msaaSamples = aurora::gfx::get_sample_count(),
+            .clearColor = false,
+            .clearAlpha = true,
+            .clearDepth = false,
+        }),
+        .color = wgpu::Color{0.f, 0.f, 0.f, g_gxState.dstAlpha / 255.f},
+    });
+  }
+  if (aurora::gx::render_target_has_alpha(g_gxState.pixelFmt)) {
+    clearState.clearAlpha = clear && alphaUpdate;
+  }
+  const auto copyFilter = combined_copy_filter_coefficients(g_gxState.copyFilterVFilter);
+  // Room for the resolve and the two blits below, so none of them splits the staging buffer.
+  aurora::gfx::ensure_staging_space({0, 4 * aurora::gfx::staging_uniform_bytes(48), 0, 0});
+  aurora::gfx::resolve_pass(piece, rect, clearState.clearColor, clearState.clearAlpha, clearState.clearDepth,
+                            clearState.clearColorValue, aurora::gx::clear_depth_value(), texCopyFmt,
+                            &sourceRect.sampleRect, g_gxState.texCopyHalfScale, &copyFilter, forceOpaqueAlpha,
+                            sourceRect.sampleRect.w() / std::max<float>(g_gxState.texCopySrc.height, 1.0f),
+                            (g_gxState.copyClamp & GX_CLAMP_TOP) != 0, (g_gxState.copyClamp & GX_CLAMP_BOTTOM) != 0,
+                            /*persistentCopy=*/true);
+  auto& baseRef = baseIt->second;
+  if (initialContents) {
+    aurora::gfx::queue_post_resolve_blit(initialContents, baseRef.handle,
+                                         {0, 0, static_cast<int32_t>(scaledBaseWidth),
+                                          static_cast<int32_t>(scaledBaseHeight)});
+  }
+  aurora::gfx::queue_post_resolve_blit(piece, baseRef.handle, {left, top, right - left, bottom - top});
+
+  ++baseRef.revision;
+  baseRef.lastProducedFrame = aurora::gfx::current_frame();
+  baseRef.width = baseWidth;
+  baseRef.height = baseHeight;
+  baseRef.format = baseFormat;
+  baseRef.dataSize = GXGetTexBufferSize(baseWidth, baseHeight, baseFormat, GX_FALSE, 0);
+  g_gxState.copyTextures[base] = baseRef;
+  aurora::gx::notify_copy_texture_created();
+}
+
 void GXClearBoundingBox() {
   g_gxState.boundingBox = {1023, 0, 1023, 0};
   GX_WRITE_RAS_REG(0x550003FFu);

@@ -2,6 +2,7 @@
 #define DOLPHIN_GXAURORA_H
 
 #include <dolphin/types.h>
+#include <dolphin/gx/GXEnum.h>
 
 #if __cplusplus
 extern "C" {
@@ -126,6 +127,16 @@ void GXRestoreViewportScissorRender(void);
 /** Sets the texture-copy source in active render-target coordinates, for bridges that already
  *  resolved VI/window scaling. */
 void GXSetTexCopySrcRender(u16 left, u16 top, u16 wd, u16 ht);
+
+/**
+ * GXCopyTex into a sub-rectangle of a larger texture. On hardware the copy writes the copied pixels at
+ * `dest` with the row stride of the width given to GXSetTexCopyDst, so a game can update part of a
+ * texture it later samples whole (an animated-tile atlas). `base` is that texture (its data address,
+ * size and format) and (dstX, dstY) is where `dest` falls in it. The texture's GPU copy is kept and
+ * updated in place; it replaces the RAM contents for samplers of `base` until GXDestroyCopyTex(base).
+ */
+void GXCopyTexToRegion(void* dest, const void* base, u16 baseWidth, u16 baseHeight, GXTexFmt baseFormat, u16 dstX,
+                       u16 dstY, GXBool clear);
 
 /**
  * Create an offscreen framebuffer and switch rendering to it.

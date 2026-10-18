@@ -152,6 +152,34 @@ extern "C" void GX__CopyTex_8016fd74(uint32_t da, uint32_t c) {
     // Keep the source in guest EFB coordinates. Aurora maps it to the scaled
     // EFB exactly once, matching Dolphin's ConvertEFBRectangle path.
     GXSetTexCopySrc(rawSrcLeft, rawSrcTop, rawSrcWidth, rawSrcHeight);
+
+    // A copy narrower than its destination stride writes into part of a larger texture (New Super
+    // Mario Bros. Wii draws each animated tile's current frame into its tileset this way). Update
+    // that texture's GPU image in place instead of making a separate texture nobody samples.
+    const uint32_t halfShift = g_texCopyState.dstMipmap ? 1u : 0u;
+    const uint32_t copyWidth = std::max<uint32_t>(rawSrcWidth >> halfShift, 1u);
+    const uint32_t copyHeight = std::max<uint32_t>(rawSrcHeight >> halfShift, 1u);
+    TextureCopyRegion region;
+    if (g_texCopyState.dstWidth > copyWidth &&
+        FindTextureContainingCopy(da, g_texCopyState.dstWidth, g_texCopyState.dstFormat, copyWidth, copyHeight,
+                                  region)) {
+        static bool reported = false;
+        if (!reported) {
+            reported = true;
+            RT_LOGF(RT_TAG_GX, "GXCopyTex: %ux%u copy into texture 0x%08X (%ux%u fmt %u) at %u,%u\n", copyWidth,
+                    copyHeight, region.baseAddr, region.width, region.height, region.format, region.x, region.y);
+        }
+        // The texture is keyed by its host pointer, and each guest alias has its own: take the base in the
+        // alias the game used for the destination (region.baseAddr is the canonical address).
+        const uint32_t baseInDestAlias = da - (CanonicalizeGxMainRamAddress(da) - region.baseAddr);
+        GXCopyTexToRegion(GuestToHostPtr(da), GuestToHostPtr(baseInDestAlias), region.width, region.height,
+                          static_cast<GXTexFmt>(region.format), region.x, region.y, (GXBool)c);
+        // A later DCStoreRange over the texture (new contents loaded) retires the GPU image.
+        RememberEfbCopyDestination(region.baseAddr, region.baseSize);
+        GXSetTexCopySrc(rawSrcLeft, rawSrcTop, rawSrcWidth, rawSrcHeight);
+        return;
+    }
+
     // EFB copies stay GPU-only except probe-sized ones (e.g. the 4x4 lens-flare depth probe),
     // which Aurora reads back asynchronously via efb_ram::schedule and land in guest RAM a frame
     // later. RISK: copies above the probe threshold, or on the offscreen list, are not

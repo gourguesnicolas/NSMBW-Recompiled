@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, audio traces in review).
+Last updated: 2026-10-18 (PR #73 open: animated tiles fixed, sub-rectangle EFB copies into the tileset).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -60,7 +60,16 @@ Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, 
   (Peach's castle, Mario, the paths: screenshot, 60 fps), the file select and the level intro. What made the
   3D scenes empty: the cache hooks were never registered, so the locked-cache DMA (`DMA_U`/`DMA_L`, SPR
   922/923) was not performed and the 3D code read uninitialised matrices (`profiles/smne01/cache_hooks.cpp`).
-  Not checked yet: the first level, the title screen, enemies and effects.
+  The user played a cave level (tiles, Goomba, coins, POW block, HUD all drawn); the title-screen demo of 1-1
+  runs (screenshot).
+- **Animated tiles (coins, ? blocks, bricks) were frozen; fixed.** The game redraws each animated tile's
+  current frame every frame and copies it with `GXCopyTex` *into a 32x32 sub-rectangle of the level tileset*
+  (a 1024x1024 RGB5A3 texture): `GXSetTexCopyDst(1024, 1024, ...)` sets the row stride and the destination
+  address points inside the tileset. The runtime made a separate texture per copy that nothing sampled, so the
+  tileset kept its first image. Now `gx_copy.cpp` finds the texture containing the destination
+  (`FindTextureContainingCopy`, by stride width and format) and aurora's `GXCopyTexToRegion` keeps a GPU
+  image of that texture (seeded from RAM on the first copy) and blits each copy into it at the right texel.
+  Generic: any game doing partial copies benefits; proposable upstream (user writes the description).
 - **Input**: a real Wii Remote is used when paired (SDL HIDAPI). Otherwise
   `runtime/src/hle/input/gamepad_as_remote.cpp` makes a virtual remote held sideways: arrows or D-pad/stick
   move, Space or X (pad A) = "2" (jump), Left Shift or Z (pad B) = "1" (run), Enter = A, Backspace = B,
@@ -83,18 +92,23 @@ Last updated: 2026-10-15 (PR #69 open; virtual Wii Remote, GetTexObjLODAll fix, 
   what 3D models use), `GXSetNumTexGens` was on `0x801C4A50` (real `0x801C4A20`); `GXInvalidateTexAll` was on `0x801C7750` (an unrelated
   bit setter; real `0x801C76C0`). How they were found: compare the distance between two consecutive hooks with the distance
   between their Mario Kart Wii counterparts, then read the body (BP register id, `gd+offset`, argument use).
-  Still unaudited by body: the vertex-attribute group (`0x801C37C0`-`0x801C4780`), FIFO group, TEV group,
-  transform group. They fit the distance check, which is not proof.
-- **Open after the cache fix**: the level tile atlas shows at the bottom of the picture (the 20 animated-tile
-  textures are rendered into the EFB strip below the visible 456 lines and the display copy is taller than
-  that: the VI/EFB size mirrors `kViRenderHeightAddr` etc. are not located for this game); the music is
-  silent (MKW sound-manager and EGG-screen writes were removed in this PR; not yet re-tested).
+  Audited by body since: `GXSetTevColor`/`S10`/`KColor`/`KColorSel`/`KAlphaSel`, the indirect group
+  (`GXSetTevIndirect` incl. its two stack arguments, `GXSetIndTexMtx`, `GXSetIndTexCoordScale`,
+  `GXSetIndTexOrder`, `GXSetNumIndStages`), `GXLoadTexMtxImm`, `GXSetTexCoordGen2`: all correct. Still
+  unaudited: the vertex-attribute group (`0x801C37C0`-`0x801C4780`), FIFO group, the rest of the TEV and
+  transform groups.
+- **The EFB strip below line 456**: each frame the game renders 20 small 32x32 textures there (a constant
+  32x32 RGBA8 source, 64x4 I8 ramps and indirect matrices that do not change from frame to frame), most
+  likely lighting textures, plus each animated tile's frame at (0,456)/(0,488) before copying it into the
+  tileset. An earlier report of this strip showing at the bottom of the picture was not seen again in the
+  latest screenshots; the VI/EFB size mirrors (`kViRenderHeightAddr` etc.) are still not located for this
+  game. Music: still missing (user report); not investigated yet.
 - **Startup screen**: the runtime covers the game with an opaque black "WiiCompiled" screen until
   `settings_overlay::NotifyStrapInputAccepted()`; for SMNE01 `vi.cpp` calls it after 30 presented frames
   (stand-in for MKW's strap-scene hook).
 - **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
   NAND (SC getters other than aspect ratio return defaults).
-- **Open PRs**: #72 (cache hooks, MKW-address removal, GX traces).
+- **Open PRs**: #73 (animated-tile fix, sub-rectangle EFB copies).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -125,8 +139,8 @@ it in the profile, rebuild, run. MKW hook addresses are keyed in `runtime/src/hl
 values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there.
 
 ### Next steps (in order)
-1. **Check the picture** on the title and a level against the real game; fix the visible strip (VI size
-   statics); audit the remaining GX hooks by body (list above).
+1. **Check the picture** in levels against the real game (animated tiles after the fix, enemies, effects);
+   audit the remaining GX hooks by body (list above).
 2. **Music**: listen, then check the audio backend output path and the sample format if it is noise or silent.
 3. **Fill the missing console data**: `play_rec.dat`, `SYSCONF`, `/dev/es` ioctls 29 and 27.
 4. Faithful strap-scene hook; GameCube pad when reached.
@@ -138,6 +152,9 @@ values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there
 - **Mario Kart Wii addresses in shared runtime code**: anything that reads or writes a fixed `0x80xxxxxx`
   address outside `profiles/` and the `*_layout.h` files is a bug for this game (found so far: dynamic aspect,
   music attenuation, fiber manager, now guarded or per-game). `grep` for them when something is wrong.
+- **A frozen or missing animation with correct inputs**: check the EFB copies first. A `GXCopyTex` whose
+  `GXSetTexCopyDst` width is larger than the copied width writes into part of another texture; it must reach
+  that texture (see the animated-tile fix). `MKW_TRACE_GX=1` prints each traced frame's copies.
 - Remove nothing from the MKW profile; keep `allow_unsupported_instructions: false`.
 - Never commit anything from `Assets/`, `generated/`, `build/`, or `UserData/`.
 - Open a PR for every change; the user merges.
