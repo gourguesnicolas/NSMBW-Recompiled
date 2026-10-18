@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (animated tiles fixed: sub-rectangle EFB copies into the tileset; PR open).
+Last updated: 2026-10-18 (PR #73 open: animated tiles fixed, sub-rectangle EFB copies into the tileset).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -108,7 +108,7 @@ Last updated: 2026-10-18 (animated tiles fixed: sub-rectangle EFB copies into th
   (stand-in for MKW's strap-scene hook).
 - **Still unhandled**: `/dev/es` ioctl 29 and 27, `SYSCONF` and `play_rec.dat` are not created in the managed
   NAND (SC getters other than aspect ratio return defaults).
-- **Open PRs**: the animated-tile fix (branch `tileset-subrect-copies`).
+- **Open PRs**: #73 (animated-tile fix, sub-rectangle EFB copies).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
