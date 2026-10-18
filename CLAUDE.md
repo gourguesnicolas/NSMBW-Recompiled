@@ -50,7 +50,7 @@ Inputs are extracted locally into `Assets/` (see `projects/nsmbw-usa/README.md`)
 
 ## Status and next steps
 
-Last updated: 2026-10-18 (#74 merged; PR #75 open: console data, saves kept across boots, game in French).
+Last updated: 2026-10-18 (#75 merged; PR #76 open: tileset refreshed after a pipe).
 
 ### Where we are
 - **M0 done. M1 done**: the translator reaches 41,000+ functions in strict mode; the executable compiles and
@@ -70,6 +70,10 @@ Last updated: 2026-10-18 (#74 merged; PR #75 open: console data, saves kept acro
   (`FindTextureContainingCopy`, by stride width and format) and aurora's `GXCopyTexToRegion` keeps a GPU
   image of that texture (seeded from RAM on the first copy) and blits each copy into it at the right texel.
   Generic: any game doing partial copies benefits; proposable upstream (user writes the description).
+  Follow-up: after a pipe the new area showed the previous area's tiles until a window resize, because the
+  GPU image was seeded from RAM only once and the game loads the next tileset to the same address. The RAM
+  texture is now resolved on every copy (the static texture cache returns a new upload only after guest
+  writes) and a new upload refills the GPU image (about once per area load). Confirmed by the user.
 - **Input**: a real Wii Remote is used when paired (SDL HIDAPI). Otherwise
   `runtime/src/hle/input/gamepad_as_remote.cpp` makes a virtual remote held sideways: arrows or D-pad/stick
   move, Space or X (pad A) = "2" (jump), Left Shift or Z (pad B) = "1" (run), Enter = A, Backspace = B,
@@ -119,7 +123,9 @@ Last updated: 2026-10-18 (#74 merged; PR #75 open: console data, saves kept acro
   `sys/boot.bin`); the SDK now parses `SYSCONF` (the `SCCheckStatus` hook used to skip the parse).
   `[system] language = "french"` in `Config.toml` puts the game in French (seen: strap screen, save dialog).
   `MKW_TRACE_NAND=1` traces NAND traffic. `play_rec.dat` is still not created (nothing visible fails).
-- **Open PRs**: #75 (console data, saves kept across boots; part of #19).
+  **Confirmed by the user**: progress is kept after finishing a level and relaunching. #19's three criteria
+  (title directory, system settings, save creation flow) are met.
+- **Open PRs**: #76 (tileset refresh after a pipe).
 - **Open issues to keep open**: #16 (first launch), #51 (hook port), #14 (SDK inventory), #7 (templates,
   until a real run confirms the log paths), #15 (determinism audit), #52 (stale "REL data: 0 bytes" message),
   #6 (licence of the symbol sources).
@@ -155,8 +161,7 @@ values go in `runtime/src/hle/os/os_layout.h`; never change the MKW values there
    audit the remaining GX hooks by body (list above).
 2. **Audio by ear**: the user confirms music in menus and levels; check tempo, pitch and the reverb
    (the AXFX callback is not located).
-3. **Saves by hand**: the user finishes a level, quits, relaunches and checks the progress is still there
-   (boot already reads the existing save instead of recreating it).
+3. **#52**: the stale "REL data: 0 bytes" message (generic translator PR, proposable upstream).
 4. Faithful strap-scene hook; GameCube pad when reached.
 5. Not located: `AIGetDSPSampleRate`, the AXFX reverb callback, `WPADGetDpdSensitivity`,
    `KPADGetUnifiedWpadStatus`, the NAND API level.

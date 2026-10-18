@@ -566,25 +566,37 @@ void GXCopyTexToRegion(void* dest, const void* base, u16 baseWidth, u16 baseHeig
     return;
   }
 
-  // The texture's GPU image: created from its RAM contents on the first copy, then updated in place.
+  // The texture's GPU image: filled from its RAM contents, then updated in place by each copy. The RAM
+  // texture is resolved on every copy: the static texture cache hands back the same upload while the
+  // guest has not written that memory, and a new one once it has (a game loading another tileset to the
+  // same address, e.g. after a pipe). A new upload means the GPU image is refilled from it.
   const aurora::gx::GXState::CopyTextureKey baseKey{
       .dest = base,
       .width = baseWidth,
       .height = baseHeight,
       .format = baseFormat,
   };
+  GXTexObj ramTexture;
+  GXInitTexObj(&ramTexture, base, baseWidth, baseHeight, baseFormat, GX_CLAMP, GX_CLAMP, GX_FALSE);
+  // No texture-object identity, so the lookup goes by address and contents and adds no per-call entry.
+  reinterpret_cast<GXTexObj_*>(&ramTexture)->texObjId = 0;
+  const auto ramContents = aurora::gx::resolve_ram_texture(*reinterpret_cast<const GXTexObj_*>(&ramTexture));
+  static absl::flat_hash_map<aurora::gx::GXState::CopyTextureKey, aurora::gfx::TextureHandle> s_regionSources;
   aurora::gfx::TextureHandle initialContents;
   auto baseIt = g_gxState.copyTextureCache.find(baseKey);
   if (baseIt == g_gxState.copyTextureCache.end() || !baseIt->second.handle ||
       baseIt->second.handle->size.width != scaledBaseWidth || baseIt->second.handle->size.height != scaledBaseHeight) {
-    GXTexObj ramTexture;
-    GXInitTexObj(&ramTexture, base, baseWidth, baseHeight, baseFormat, GX_CLAMP, GX_CLAMP, GX_FALSE);
-    initialContents = aurora::gx::resolve_ram_texture(*reinterpret_cast<const GXTexObj_*>(&ramTexture));
     auto handle = aurora::gfx::new_render_texture(scaledBaseWidth, scaledBaseHeight, GX_TF_RGBA8,
                                                   "GX texture updated by sub-rectangle copies");
     baseIt = g_gxState.copyTextureCache.insert_or_assign(baseKey, aurora::gx::GXState::CopyTextureRef{.handle = handle})
                  .first;
+    initialContents = ramContents;
+  } else if (const auto source = s_regionSources.find(baseKey);
+             source == s_regionSources.end() || source->second != ramContents) {
+    initialContents = ramContents;
   }
+  if (initialContents) {
+    s_regionSources.insert_or_assign(baseKey, initialContents);  }
 
   // The copied pixels, converted to the copy format exactly as a whole-texture copy would be.
   const aurora::gx::GXState::CopyTextureKey pieceKey{
