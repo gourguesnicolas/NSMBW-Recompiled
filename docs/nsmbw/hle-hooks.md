@@ -128,12 +128,21 @@ version checks sit at `0x801AA800`.
 | `DVDReadPrio` | `0x8015E834` | `0x801CAB20` | high | see the table above |
 | `DVDReadAbsAsyncPrio` | `0x801628CC` | `0x801CECC0` | high | see the table above |
 | `DVDLowInit` | `0x80164848` | `0x801D1230` | high | called by `DVDInit`; calls `IPCCltInit` and opens `/dev/di` through IOS |
+| `DVDLowClearCoverInterrupt` | `0x80166964` | `0x801D3700` | high | `IOS_IoctlAsync` on the DI fd (`r13 - 24632`) with command `0x86`, one argument (the callback) |
+| `DVDLowInquiry` | `0x80165A30` | `0x801D2470` | high | same wrapper with command `0x12` and a 0x20-byte output (the drive info), arguments (info, callback) |
 
 `DVDFsInit` is `0x801CA650` (inlined into `DVDInit`, also a function of its own). The DVD request records
 are 0x20 bytes at `0x80395BE0`, the waiting queues at `0x803958B0`. The other `DVDLow*` functions
-(`0x801D14A0`..`0x801D3700`, each one an IOS ioctl wrapper with its own command code, `Inquiry` is the
-one writing `0x12`) are not hooked: they are only reached from the drive state machine that `DVDInit` no
-longer starts.
+(`0x801D14A0`..`0x801D3E30`, each one an IOS ioctl wrapper with its own command code) are not hooked.
+
+`OSInit` starts the drive state machine, which sends `ClearCoverInterrupt` then `Inquiry`. Unhooked, both went
+to the DI fd, which is -1 because the HLE never opens `/dev/di`; the reply was not "transfer complete", so
+the driver read the status and control registers (`0x95`, `0x96`), asked for the error (`0x801D22D0`,
+command `0xE3`) and `cbForStateError` (`0x801CB1B0`) set the fatal-error flag. `DVDGetDriveStatus`
+(`0x801CEF60`) returns -1 while that flag is set; it reads the fatal flag at `r13 - 19796` (`0x8042A92C`),
+the pausing flag at `r13 - 19800` (`0x8042A928`) and the executing command block at `r13 - 19664`
+(`0x8042A9B0`). The nw4r stream player checks the drive status every sound frame and holds a stream in
+"load wait" (voices paused) unless it is 0 or 1, which is why no music played while sound effects did.
 
 ## Video interface and the drive check, registered in `profiles/smne01/vi_hooks.cpp` and `dvd_hooks.cpp` (#16)
 
