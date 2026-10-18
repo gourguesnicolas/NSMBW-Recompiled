@@ -120,6 +120,11 @@ bool NandRename(const std::filesystem::path& from, const std::filesystem::path& 
 bool SeedFaceLibResource(const std::filesystem::path& hostPath);
 bool IsFaceLibResourcePath(const char* path);
 
+// The system menu's play log of the running game, written on the first open of a run as the menu leaves it.
+// `now` is the guest time base.
+bool IsPlayRecordPath(const char* path);
+bool SeedPlayRecord(const std::filesystem::path& hostPath, uint64_t now);
+
 // ============================================================================
 // stdio helpers shared by the NAND* library and the IOS_* device layer
 // ============================================================================

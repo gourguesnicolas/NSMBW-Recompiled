@@ -447,6 +447,75 @@ bool SeedFaceLibResource(const std::filesystem::path& hostPath) {
     return true;
 }
 
+// play_rec.dat is the system menu's log of the running game, which it writes just before it boots a
+// disc. The SDK opens it read-write, reads the 128 bytes, then every minute writes back the same record
+// with the time at 0x60 and the checksum at 0x00 updated; it stops if the time it read is more than five
+// minutes behind the clock. Layout: u32 checksum (sum of the 31 words after it), the title name as 40
+// UTF-16 characters, u32 0, u64 start time, u64 last time, the 6-character game ID, zero padding.
+static constexpr char kPlayRecordPath[] = "/title/00000001/00000002/data/play_rec.dat";
+static constexpr size_t kPlayRecordSize = 0x80;
+
+bool IsPlayRecordPath(const char* path) {
+    return std::strcmp(path, kPlayRecordPath) == 0;
+}
+
+// The title name in the console language from the disc banner (opening.bnr: an IMET header at 0x40,
+// names at 0x5C, 42 UTF-16 characters per language in IPL.LNG order), English when that one is empty.
+static std::vector<uint8_t> BannerTitleName() {
+    constexpr size_t kNamesOffset = 0x5C;
+    constexpr size_t kNameBytes = 42 * 2;
+    std::vector<uint8_t> banner;
+    if (const auto dvdRoot = RuntimeConfigFile::ResolvedDvdRoot(); !dvdRoot.empty()) {
+        std::ifstream in(dvdRoot / "files" / "opening.bnr", std::ios::binary);
+        banner.resize(kNamesOffset + 10 * kNameBytes);
+        if (!in.read(reinterpret_cast<char*>(banner.data()), static_cast<std::streamsize>(banner.size())) ||
+            std::memcmp(banner.data() + 0x40, "IMET", 4) != 0) {
+            return {};
+        }
+    }
+    uint8_t language = 1;
+    if (const auto sysconf = RuntimeNandSysconf::Read(RuntimeNandSysconf::FilePath(GetNandBasePath()))) {
+        if (const auto offset = RuntimeNandSysconf::FindByteItem(*sysconf, "IPL.LNG"); offset && (*sysconf)[*offset] < 10) {
+            language = (*sysconf)[*offset];
+        }
+    }
+    for (const uint8_t index : {language, uint8_t{1}}) {
+        const uint8_t* name = banner.data() + kNamesOffset + index * kNameBytes;
+        if (name[0] != 0 || name[1] != 0) {
+            return {name, name + 40 * 2};
+        }
+    }
+    return {};
+}
+
+bool SeedPlayRecord(const std::filesystem::path& hostPath, uint64_t now) {
+    std::array<uint8_t, kPlayRecordSize> record{};
+    const std::vector<uint8_t> name = BannerTitleName();
+    std::memcpy(record.data() + 0x04, name.data(), std::min<size_t>(name.size(), 0x50));
+    for (int i = 0; i < 8; ++i) {
+        record[0x58 + i] = record[0x60 + i] = static_cast<uint8_t>(now >> (56 - 8 * i));
+    }
+    for (uint32_t i = 0; i < 6; ++i) {
+        record[0x68 + i] = Memory::Read8(0x80000000u + i);
+    }
+    uint32_t checksum = 0;
+    for (size_t offset = 4; offset < kPlayRecordSize; offset += 4) {
+        checksum += BigEndian::Read32(record.data() + offset);
+    }
+    for (int i = 0; i < 4; ++i) {
+        record[i] = static_cast<uint8_t>(checksum >> (24 - 8 * i));
+    }
+
+    CreateParentDirectories(hostPath);
+    std::ofstream out(hostPath, std::ios::binary);
+    out.write(reinterpret_cast<const char*>(record.data()), static_cast<std::streamsize>(record.size()));
+    if (!out) {
+        LogNandError("PlayRecordSeed", "Failed to write %s", HostPathText(hostPath).c_str());
+        return false;
+    }
+    return true;
+}
+
 bool IsFaceLibResourcePath(const char* path) {
     return std::strcmp(path, "/shared2/menu/FaceLib/RFL_Res.dat") == 0;
 }
