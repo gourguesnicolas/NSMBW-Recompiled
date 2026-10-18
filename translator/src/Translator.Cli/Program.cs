@@ -2871,9 +2871,13 @@ int RunGenerateDataInit()
     {
         Directory.CreateDirectory(outputDir);
     }
+    // The REL images that end up embedded: the linked modules of a multi-module project, otherwise the
+    // single configured REL. The size report below counts exactly these.
+    IReadOnlyList<RelImage> embeddedRelImages;
     if (loadedProject.Inputs.Rels.Count > 0 && loadedProject.Runtime.PreloadModules)
     {
         var moduleImages = LinkConfiguredModules();
+        embeddedRelImages = moduleImages;
         DataSectionGenerator.Generate(
             dol,
             moduleImages
@@ -2884,6 +2888,7 @@ int RunGenerateDataInit()
     }
     else
     {
+        embeddedRelImages = relImage is null ? Array.Empty<RelImage>() : new[] { relImage };
         DataSectionGenerator.Generate(
             dol,
             relImage,
@@ -2900,13 +2905,23 @@ int RunGenerateDataInit()
 
     // Calculate total size
     var dolDataSize = dol.Sections.Where(s => s.HasData).Sum(s => s.Size);
-    var relDataSize = relImage?.Data.Length ?? 0;
+    var relDataSize = embeddedRelImages.Sum(image => (long)image.Data.Length);
     var totalSize = dolDataSize + relDataSize;
 
     Console.WriteLine($"[translator] Generated data section initializer: {output}");
     Console.WriteLine($"[translator] Guest symbol table: {guestSymbolCount:N0} named entries -> {guestSymbolOutput}");
     Console.WriteLine($"[translator] DOL sections: {dolDataSize:N0} bytes");
-    Console.WriteLine($"[translator] REL data: {relDataSize:N0} bytes");
+    var moduleCount = loadedProject.Inputs.Rels.Count;
+    if (moduleCount > 0 && !loadedProject.Runtime.PreloadModules)
+    {
+        Console.WriteLine($"[translator] REL data: 0 bytes ({moduleCount} modules, not embedded: the game loads them at run time)");
+    }
+    else
+    {
+        Console.WriteLine(embeddedRelImages.Count > 1
+            ? $"[translator] REL data: {relDataSize:N0} bytes ({embeddedRelImages.Count} modules)"
+            : $"[translator] REL data: {relDataSize:N0} bytes");
+    }
     Console.WriteLine($"[translator] Total embedded: {totalSize:N0} bytes ({totalSize / 1024.0 / 1024.0:F2} MB)");
 
     return 0;
